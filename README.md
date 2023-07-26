@@ -1,5 +1,8 @@
 # ebnf-based-generator
 
+整体效果类似于： https://github.com/renatahodovan/grammarinator
+
+
 ### cypher enbf示例
 
 https://opencypher.org/resources/
