@@ -1,8 +1,12 @@
 # ebnf-based-generator
 
-整体效果类似于： https://github.com/renatahodovan/grammarinator
+整体效果类似于： 
 
-https://github.com/googleprojectzero/domato
+- https://www.fuzzingbook.org/html/Grammars.html  fuzzing book 的syntactic fuzzing和semantic fuzzing章节
+
+- https://github.com/renatahodovan/grammarinator
+
+- https://github.com/googleprojectzero/domato
 
 
 ## 需求功能点
