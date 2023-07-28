@@ -272,3 +272,24 @@ func TestExpansionTuple_Expand2(t *testing.T) {
 		t.Errorf("Expand() = %v; want %v", res[0].GetName(), "<digit>")
 	}
 }
+
+func TestGrammar_SymbolCost(t *testing.T) {
+	testCases := []struct {
+		name   string
+		symbol string
+		cost   float64
+	}{
+		{"Test case 1", "<digit>", 1},
+		{"Test case 2", "<expr>", 5},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			m := make(map[string]struct{})
+			cost := ExprGrammar.SymbolCost(tt.symbol, m)
+			if cost != tt.cost {
+				t.Errorf("SymbolCost() = %v; want %v", cost, tt.cost)
+			}
+		})
+	}
+}

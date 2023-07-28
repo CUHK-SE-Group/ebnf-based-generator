@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/goccy/go-graphviz"
 	"github.com/goccy/go-graphviz/cgraph"
+	"math"
 	"math/rand"
 	"os"
 	"regexp"
@@ -47,8 +48,8 @@ func (e *ExpansionTuple) GetOpt() Option {
 
 type Grammar map[string][]ExpansionTuple
 
-func (g Grammar) ExpandSymbol(symbol string) []ExpansionTuple {
-	expansions, ok := g[symbol]
+func (grammar Grammar) ExpandSymbol(symbol string) []ExpansionTuple {
+	expansions, ok := grammar[symbol]
 	if !ok {
 		return nil
 	}
@@ -64,13 +65,13 @@ func (g Grammar) ExpandSymbol(symbol string) []ExpansionTuple {
 	chosenElement := newChildren[rand.Intn(len(newChildren))]
 	return chosenElement
 }
-func (g Grammar) GetSymbol(symbol string) []ExpansionTuple {
-	return g[symbol]
+func (grammar Grammar) GetSymbol(symbol string) []ExpansionTuple {
+	return grammar[symbol]
 }
 
-func (g Grammar) Extend(extension Grammar) {
+func (grammar Grammar) Extend(extension Grammar) {
 	for k, v := range extension {
-		g[k] = v
+		grammar[k] = v
 	}
 }
 func (grammar Grammar) OptsUsed() Set {
@@ -84,8 +85,8 @@ func (grammar Grammar) OptsUsed() Set {
 	}
 	return usedOpts
 }
-func (g Grammar) SetOpts(symbol string, expainsion ExpansionTuple, opt Option) {
-	expansions := g.GetSymbol(symbol)
+func (grammar Grammar) SetOpts(symbol string, expainsion ExpansionTuple, opt Option) {
+	expansions := grammar.GetSymbol(symbol)
 	for i, v := range expansions {
 		if v.GetName() != expainsion.GetName() {
 			continue
@@ -100,9 +101,9 @@ func (g Grammar) SetOpts(symbol string, expainsion ExpansionTuple, opt Option) {
 			}
 		}
 		if newOpt != nil {
-			g[symbol][i] = ExpansionTuple{name: expainsion.GetName(), info: newOpt}
+			grammar[symbol][i] = ExpansionTuple{name: expainsion.GetName(), info: newOpt}
 		} else {
-			g[symbol][i] = ExpansionTuple{name: expainsion.GetName()}
+			grammar[symbol][i] = ExpansionTuple{name: expainsion.GetName()}
 		}
 	}
 	return
@@ -263,4 +264,45 @@ func (grammar Grammar) Visualize(filename string) {
 	if err != nil {
 		panic(err)
 	}
+}
+
+func (grammar Grammar) SymbolCost(symbol string, seen map[string]struct{}) float64 {
+	expansions := grammar[symbol]
+	minCost := math.Inf(1)
+	for _, expansion := range expansions {
+		seen[symbol] = struct{}{}
+		cost := grammar.ExpansionCost(expansion, seen)
+		if cost < minCost {
+			minCost = cost
+		}
+	}
+	return minCost
+}
+
+func (grammar Grammar) ExpansionCost(expansion ExpansionTuple, seen map[string]struct{}) float64 {
+	symbols := NonTerminals(expansion.GetName())
+	if len(symbols) == 0 {
+		return 1 // no symbol
+	}
+
+	// Check if any symbol is in the seen set
+	for _, s := range symbols {
+		if _, ok := seen[s]; ok {
+			return math.Inf(1)
+		}
+	}
+
+	// Copy seen and add current symbol to the set
+	newSeen := make(map[string]struct{})
+	for k := range seen {
+		newSeen[k] = struct{}{}
+	}
+
+	// The value of an expansion is the sum of all expandable variables
+	// inside + 1
+	total := 1.0
+	for _, s := range symbols {
+		total += grammar.SymbolCost(s, newSeen)
+	}
+	return total
 }

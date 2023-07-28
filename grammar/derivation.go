@@ -1,6 +1,7 @@
 package grammar
 
 import (
+	"fmt"
 	"github.com/goccy/go-graphviz"
 	"github.com/goccy/go-graphviz/cgraph"
 )
@@ -59,9 +60,10 @@ func (dt *DerivationTree) ExpandNode() bool {
 		if node == nil {
 			return
 		}
-		if IsNonTerminals(node.GetName()) {
+		if node.Children == nil && IsNonTerminals(node.GetName()) {
 			finish = false
 		}
+		fmt.Println(node.GetName())
 	})
 	return finish
 }
