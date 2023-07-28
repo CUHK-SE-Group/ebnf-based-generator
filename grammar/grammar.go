@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/goccy/go-graphviz"
 	"github.com/goccy/go-graphviz/cgraph"
+	"math/rand"
 	"os"
 	"regexp"
 )
@@ -11,6 +12,13 @@ import (
 const StartSymbol = "<start>"
 
 var ReNonterminal = regexp.MustCompile("(<[^<> ]*>)")
+var SimpleNonterminalGrammar = Grammar{
+	"<start>":       []ExpansionTuple{{name: "<nonterminal>"}},
+	"<nonterminal>": []ExpansionTuple{{name: "<left-angle><identifier><right-angle>"}},
+	"<left-angle>":  []ExpansionTuple{{name: "<"}},
+	"<right-angle>": []ExpansionTuple{{name: ">"}},
+	"<identifier>":  []ExpansionTuple{{name: "id"}}, // for now
+}
 
 type Option map[string]interface{}
 type ExpansionTuple struct {
@@ -18,6 +26,18 @@ type ExpansionTuple struct {
 	info Option
 }
 
+func (e *ExpansionTuple) Expand() []ExpansionTuple {
+	if e.GetName() == "" {
+		return []ExpansionTuple{{"", nil}}
+	}
+	re := regexp.MustCompile("<[^<> ]*>|[^<> ]+")
+	results := re.FindAllString(e.GetName(), -1)
+	var ExpansionList []ExpansionTuple
+	for _, v := range results {
+		ExpansionList = append(ExpansionList, ExpansionTuple{name: v})
+	}
+	return ExpansionList
+}
 func (e *ExpansionTuple) GetName() string {
 	return e.name
 }
@@ -27,6 +47,23 @@ func (e *ExpansionTuple) GetOpt() Option {
 
 type Grammar map[string][]ExpansionTuple
 
+func (g Grammar) ExpandSymbol(symbol string) []ExpansionTuple {
+	expansions, ok := g[symbol]
+	if !ok {
+		return nil
+	}
+	newChildren := make([][]ExpansionTuple, 0)
+	for _, v := range expansions {
+		chs := v.Expand()
+		tmp := make([]ExpansionTuple, 0)
+		for _, ch := range chs {
+			tmp = append(tmp, ch)
+		}
+		newChildren = append(newChildren, tmp)
+	}
+	chosenElement := newChildren[rand.Intn(len(newChildren))]
+	return chosenElement
+}
 func (g Grammar) GetSymbol(symbol string) []ExpansionTuple {
 	return g[symbol]
 }

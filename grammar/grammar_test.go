@@ -5,13 +5,6 @@ import (
 	"testing"
 )
 
-var SimpleNonterminalGrammar Grammar = Grammar{
-	"<start>":       []ExpansionTuple{{name: "<nonterminal>"}},
-	"<nonterminal>": []ExpansionTuple{{name: "<left-angle><identifier><right-angle>"}},
-	"<left-angle>":  []ExpansionTuple{{name: "<"}},
-	"<right-angle>": []ExpansionTuple{{name: ">"}},
-	"<identifier>":  []ExpansionTuple{{name: "id"}}, // for now
-}
 var ExprGrammar = Grammar{
 	"<start>":   {ExpansionTuple{name: "<expr>"}},
 	"<expr>":    {ExpansionTuple{name: "<term> + <expr>"}, ExpansionTuple{name: "<term> - <expr>"}, ExpansionTuple{name: "<term>"}},
@@ -250,4 +243,32 @@ func TestGrammar_Visualize(t *testing.T) {
 	ExprEBNFGrammar.Visualize("expr_ebnf.png")
 	JsonEbnfGrammar.Visualize("json_ebnf.png")
 
+}
+
+func TestExpansionTuple_Expand(t *testing.T) {
+	e := ExpansionTuple{name: "<digit>*<integer>"}
+	res := e.Expand()
+	if len(res) != 3 {
+		t.Errorf("Expand() = %v; want %v", res, 3)
+	}
+	if res[0].GetName() != "<digit>" {
+		t.Errorf("Expand() = %v; want %v", res[0].GetName(), "<digit>")
+	}
+	if res[1].GetName() != "*" {
+		t.Errorf("Expand() = %v; want %v", res[1].GetName(), "*")
+	}
+	if res[2].GetName() != "<integer>" {
+		t.Errorf("Expand() = %v; want %v", res[2].GetName(), "<integer>")
+	}
+}
+
+func TestExpansionTuple_Expand2(t *testing.T) {
+	e := ExpansionTuple{name: ""}
+	res := e.Expand()
+	if len(res) != 1 {
+		t.Errorf("Expand() = %v; want %v", res, 3)
+	}
+	if res[0].GetName() != "" {
+		t.Errorf("Expand() = %v; want %v", res[0].GetName(), "<digit>")
+	}
 }
