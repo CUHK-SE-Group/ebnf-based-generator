@@ -7,21 +7,21 @@ import (
 
 func TestDerivationTree_ExpandNode(t *testing.T) {
 	tree := DerivationTree{
-		gram:        SimpleNonterminalGrammar,
+		gram:        URLGrammar,
 		startSymbol: StartSymbol,
-		traversal:   BFS,
+		traversal:   DFS,
 		expandAlgo:  MinimalCostExpand,
 	}
 	tree.Construct()
 	cnt := 0
-	for !tree.ExpandNode() {
+	finish := false
+	for !finish {
+		finish = tree.ExpandNode()
 		tree.Visualize(fmt.Sprintf("tree%d.png", cnt))
-		tree.GetNonTerminals()
-		//for _, v := range tree.GetNonTerminals() {
-		//	fmt.Printf("%s ", v.GetName())
-		//}
-		fmt.Println()
 		cnt++
 	}
-	tree.Visualize(fmt.Sprintf("tree%d.png", -1))
+	_, res := tree.GetLeafNodes()
+	if res != "http://cispa.saarland:80" {
+		t.Errorf("ExpandNode error, actual: %s, want: %s", res, "http://cispa.saarland:80")
+	}
 }

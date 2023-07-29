@@ -286,7 +286,7 @@ func TestGrammar_SymbolCost(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			m := make(map[string]struct{})
-			cost := ExprGrammar.SymbolCost(tt.symbol, m)
+			cost := ExprGrammar.SymbolCost(ExpansionTuple{name: tt.symbol}, m)
 			if cost != tt.cost {
 				t.Errorf("SymbolCost() = %v; want %v", cost, tt.cost)
 			}

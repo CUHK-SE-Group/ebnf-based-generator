@@ -1,7 +1,6 @@
 package grammar
 
 import (
-	"fmt"
 	"github.com/goccy/go-graphviz"
 	"github.com/goccy/go-graphviz/cgraph"
 )
@@ -29,12 +28,15 @@ func (dt *DerivationTree) Construct() {
 		}
 	}
 }
+
+// GetNonTerminals 获取叶子节点上的所有非终端符号
 func (dt *DerivationTree) GetNonTerminals() []*Node {
 	nonTermi := make([]*Node, 0)
 	dt.traversal(dt.root, func(node *Node) {
 		if node == nil {
 			return
 		}
+		// 如果当前节点有孩子节点，则不是叶子结点
 		if node.Children != nil {
 			return
 		}
@@ -63,11 +65,29 @@ func (dt *DerivationTree) ExpandNode() bool {
 		if node.Children == nil && IsNonTerminals(node.GetName()) {
 			finish = false
 		}
-		fmt.Println(node.GetName())
 	})
 	return finish
 }
+
+func (dt *DerivationTree) GetLeafNodes() ([]*Node, string) {
+	arr := make([]*Node, 0)
+	// force to use DFS
+	res := ""
+	DFS(dt.root, func(node *Node) {
+		if node == nil {
+			return
+		}
+		if node.Children == nil {
+			arr = append(arr, node)
+			res += node.GetName()
+		}
+	})
+	return arr, res
+}
 func (dt *DerivationTree) addNode(graph *cgraph.Graph, parent *cgraph.Node, node *Node) {
+	if node == nil {
+		return
+	}
 	n, err := graph.CreateNode(node.name)
 	if err != nil {
 		panic(err)

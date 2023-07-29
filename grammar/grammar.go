@@ -266,17 +266,28 @@ func (grammar Grammar) Visualize(filename string) {
 	}
 }
 
-func (grammar Grammar) SymbolCost(symbol string, seen map[string]struct{}) float64 {
-	expansions := grammar[symbol]
-	minCost := math.Inf(1)
-	for _, expansion := range expansions {
-		seen[symbol] = struct{}{}
-		cost := grammar.ExpansionCost(expansion, seen)
-		if cost < minCost {
-			minCost = cost
+func (grammar Grammar) SymbolCost(symbol ExpansionTuple, seen map[string]struct{}) float64 {
+	symbols := symbol.Expand()
+	totalCost := 0.0
+	for _, s := range symbols {
+		expansions, ok := grammar[s.GetName()]
+		if !ok {
+			return 0 // terminal
 		}
+		minCost := math.Inf(1)
+		for _, expansion := range expansions {
+			seen[s.GetName()] = struct{}{}
+			cost := grammar.ExpansionCost(expansion, seen)
+			if cost < minCost {
+				minCost = cost
+			}
+		}
+		if minCost == math.Inf(1) {
+			return minCost
+		}
+		totalCost += minCost
 	}
-	return minCost
+	return totalCost
 }
 
 func (grammar Grammar) ExpansionCost(expansion ExpansionTuple, seen map[string]struct{}) float64 {
@@ -302,7 +313,7 @@ func (grammar Grammar) ExpansionCost(expansion ExpansionTuple, seen map[string]s
 	// inside + 1
 	total := 1.0
 	for _, s := range symbols {
-		total += grammar.SymbolCost(s, newSeen)
+		total += grammar.SymbolCost(ExpansionTuple{name: s}, newSeen)
 	}
 	return total
 }

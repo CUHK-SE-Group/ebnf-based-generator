@@ -21,6 +21,9 @@ func BFS(node *Node, f func(node *Node)) {
 		f(node)
 
 		// Enqueue all children
+		if node == nil {
+			continue
+		}
 		for _, child := range node.Children {
 			queue = append(queue, child)
 		}
