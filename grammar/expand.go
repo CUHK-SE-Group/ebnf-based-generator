@@ -90,3 +90,14 @@ func MinimalCostExpand(ctx *DerivationContext, tree *DerivationTree) {
 	}
 	ctx.preExpansions = expPair
 }
+
+func MaximumCostExpansion(ctx *DerivationContext, tree *DerivationTree) {
+}
+
+// ThreePhaseExpansion https://www.fuzzingbook.org/html/GrammarFuzzer.html#Three-Expansion-Phases
+func ThreePhaseExpansion(ctx *DerivationContext, tree *DerivationTree) {
+}
+
+// CoverageBasedExpasion https://www.fuzzingbook.org/html/GrammarCoverageFuzzer.html#Tracking-Grammar-Coverage
+func CoverageBasedExpansion(ctx *DerivationContext, tree *DerivationTree) {
+}
