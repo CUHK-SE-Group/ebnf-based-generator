@@ -1,24 +1,51 @@
 package grammar
 
 import (
+	"context"
+	"fmt"
 	"github.com/goccy/go-graphviz"
 	"github.com/goccy/go-graphviz/cgraph"
 )
+
+type Handler func(ctx *DerivationContext, tree *DerivationTree)
+
+type DerivationContext struct {
+	context.Context
+	coverage      map[string]int
+	handlers      []Handler
+	handlerIndex  int
+	preExpansions []ExpansionPair
+	finish        bool
+}
+
+func (ctx *DerivationContext) Next() Handler {
+	if ctx.handlerIndex <= len(ctx.handlers) {
+		ctx.handlerIndex++
+	}
+	return ctx.handlers[ctx.handlerIndex-1]
+}
 
 type DerivationTree struct {
 	gram        Grammar
 	startSymbol string
 	traversal   TraversalAlgo
-	expandAlgo  ExpansionAlgo
+	expandAlgo  Handler
 	root        *Node
+
+	handlers       map[string][]Handler
+	systemHandlers []Handler
 }
 type Node struct {
 	ExpansionTuple
 	Children []*Node
 }
+type ExpansionPair struct {
+	From ExpansionTuple
+	To   ExpansionTuple
+}
 
 func (dt *DerivationTree) Construct() {
-	for key, value := range dt.gram {
+	for key, value := range dt.gram.G {
 		if key == dt.startSymbol {
 			dt.root = &Node{ExpansionTuple: ExpansionTuple{name: key}}
 			dt.root.Children = make([]*Node, 0)
@@ -55,18 +82,23 @@ func (dt *DerivationTree) GetNode(symbol string) *Node {
 	})
 	return n
 }
-func (dt *DerivationTree) ExpandNode() bool {
-	dt.expandAlgo(dt)
-	finish := true
-	dt.traversal(dt.root, func(node *Node) {
-		if node == nil {
-			return
-		}
-		if node.Children == nil && IsNonTerminals(node.GetName()) {
-			finish = false
-		}
-	})
-	return finish
+func (dt *DerivationTree) GetRoot() *Node {
+	return dt.root
+}
+func (dt *DerivationTree) RegisterHandler(name string, f Handler) {
+	if _, ok := dt.handlers[name]; !ok {
+		dt.handlers[name] = make([]Handler, 0)
+	}
+	dt.handlers[name] = append(dt.handlers[name], f)
+}
+
+func (dt *DerivationTree) registerSystemHandler(f Handler) {
+	dt.systemHandlers = append(dt.systemHandlers, f)
+}
+
+func (dt *DerivationTree) ExpandNode(ctx *DerivationContext) (*DerivationContext, bool) {
+	ctx.Next()(ctx, dt)
+	return ctx, ctx.finish
 }
 
 func (dt *DerivationTree) GetLeafNodes() ([]*Node, string) {
@@ -114,5 +146,57 @@ func (dt *DerivationTree) Visualize(filename string) {
 	err := g.RenderFilename(graph, graphviz.PNG, filename)
 	if err != nil {
 		panic(err)
+	}
+}
+
+func (dt *DerivationTree) ResetCoverage(ctx *DerivationContext) {
+	ctx.coverage = make(map[string]int)
+	for symbol, expansions := range dt.gram.G {
+		for _, expansion := range expansions {
+			ctx.coverage[fmt.Sprintf("%s->%s", symbol, expansion.GetName())] = 0
+		}
+	}
+}
+
+func (dt *DerivationTree) Configure(ctx *DerivationContext) *DerivationContext {
+	dt.ResetCoverage(ctx)
+	if hds, ok := dt.handlers["default"]; ok {
+		for _, hd := range hds {
+			ctx.handlers = append(ctx.handlers, hd)
+		}
+	}
+	ctx.handlers = append(ctx.handlers, dt.systemHandlers...)
+	return ctx
+}
+func (ctx *DerivationContext) GetCoverage() (map[string]int, float64) {
+	covered := 0.0
+	for _, cnt := range ctx.coverage {
+		if cnt != 0 {
+			covered++
+		}
+	}
+	return ctx.coverage, covered / float64(len(ctx.coverage))
+}
+
+func NewDerivationTree(gram Grammar, startSymbol string, traversal TraversalAlgo, expandAlgo ExpansionAlgo) *DerivationTree {
+	dt := &DerivationTree{
+		gram:        gram,
+		startSymbol: startSymbol,
+		traversal:   traversal,
+		expandAlgo:  Handler(expandAlgo),
+		handlers:    make(map[string][]Handler),
+	}
+	dt.registerSystemHandler(countCoverage)
+	dt.registerSystemHandler(checkFinish)
+	dt.registerSystemHandler(dt.expandAlgo)
+	dt.Construct()
+
+	return dt
+}
+
+func NewDerivationContext(ctx context.Context) *DerivationContext {
+	return &DerivationContext{
+		Context:  ctx,
+		coverage: make(map[string]int),
 	}
 }

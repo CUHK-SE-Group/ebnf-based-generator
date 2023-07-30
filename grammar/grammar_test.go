@@ -5,15 +5,15 @@ import (
 	"testing"
 )
 
-var ExprGrammar = Grammar{
+var ExprGrammar = Grammar{G: map[string][]ExpansionTuple{
 	"<start>":   {ExpansionTuple{name: "<expr>"}},
 	"<expr>":    {ExpansionTuple{name: "<term> + <expr>"}, ExpansionTuple{name: "<term> - <expr>"}, ExpansionTuple{name: "<term>"}},
 	"<term>":    {ExpansionTuple{name: "<factor> * <term>"}, ExpansionTuple{name: "<factor> / <term>"}, ExpansionTuple{name: "<factor>"}},
 	"<factor>":  {ExpansionTuple{name: "+<factor>"}, ExpansionTuple{name: "-<factor>"}, ExpansionTuple{name: "(<expr>)"}, ExpansionTuple{name: "<integer>.<integer>"}, ExpansionTuple{name: "<integer>"}},
 	"<integer>": {ExpansionTuple{name: "<digit><integer>"}, ExpansionTuple{name: "<digit>"}},
 	"<digit>":   {ExpansionTuple{name: "0"}, ExpansionTuple{name: "1"}, ExpansionTuple{name: "2"}, ExpansionTuple{name: "3"}, ExpansionTuple{name: "4"}, ExpansionTuple{name: "5"}, ExpansionTuple{name: "6"}, ExpansionTuple{name: "7"}, ExpansionTuple{name: "8"}, ExpansionTuple{name: "9"}},
-}
-var CgiGrammar = Grammar{
+}}
+var CgiGrammar = Grammar{G: map[string][]ExpansionTuple{
 	"<start>":   {ExpansionTuple{name: "<string>"}},
 	"<string>":  {ExpansionTuple{name: "<letter>"}, ExpansionTuple{name: "<letter><string>"}},
 	"<letter>":  {ExpansionTuple{name: "<plus>"}, ExpansionTuple{name: "<percent>"}, ExpansionTuple{name: "<other>"}},
@@ -22,8 +22,8 @@ var CgiGrammar = Grammar{
 	"<hexdigit>": {ExpansionTuple{name: "0"}, ExpansionTuple{name: "1"}, ExpansionTuple{name: "2"}, ExpansionTuple{name: "3"}, ExpansionTuple{name: "4"}, ExpansionTuple{name: "5"}, ExpansionTuple{name: "6"}, ExpansionTuple{name: "7"},
 		ExpansionTuple{name: "8"}, ExpansionTuple{name: "9"}, ExpansionTuple{name: "a"}, ExpansionTuple{name: "b"}, ExpansionTuple{name: "c"}, ExpansionTuple{name: "d"}, ExpansionTuple{name: "e"}, ExpansionTuple{name: "f"}},
 	"<other>": {ExpansionTuple{name: "0"}, ExpansionTuple{name: "1"}, ExpansionTuple{name: "2"}, ExpansionTuple{name: "3"}, ExpansionTuple{name: "4"}, ExpansionTuple{name: "5"}, ExpansionTuple{name: "a"}, ExpansionTuple{name: "b"}, ExpansionTuple{name: "c"}, ExpansionTuple{name: "d"}, ExpansionTuple{name: "e"}, ExpansionTuple{name: "-"}, ExpansionTuple{name: "_"}},
-}
-var URLGrammar = Grammar{
+}}
+var URLGrammar = Grammar{G: map[string][]ExpansionTuple{
 	"<start>":     {ExpansionTuple{name: "<url>"}},
 	"<url>":       {ExpansionTuple{name: "<scheme>://<authority><path><query>"}},
 	"<scheme>":    {ExpansionTuple{name: "http"}, ExpansionTuple{name: "https"}, ExpansionTuple{name: "ftp"}, ExpansionTuple{name: "ftps"}},
@@ -38,7 +38,7 @@ var URLGrammar = Grammar{
 	"<query>":     {ExpansionTuple{name: ""}, ExpansionTuple{name: "?<params>"}},
 	"<params>":    {ExpansionTuple{name: "<param>"}, ExpansionTuple{name: "<param>&<params>"}},
 	"<param>":     {ExpansionTuple{name: "<id>=<id>"}, ExpansionTuple{name: "<id>=<nat>"}},
-}
+}}
 
 func generateDigits() []ExpansionTuple {
 	var digits []ExpansionTuple
@@ -48,7 +48,7 @@ func generateDigits() []ExpansionTuple {
 	return digits
 }
 
-var ExprEBNFGrammar = Grammar{
+var ExprEBNFGrammar = Grammar{G: map[string][]ExpansionTuple{
 	"<start>":   {ExpansionTuple{name: "<expr>"}},
 	"<expr>":    {ExpansionTuple{name: "<term> + <expr>"}, ExpansionTuple{name: "<term> - <expr>"}, ExpansionTuple{name: "<term>"}},
 	"<term>":    {ExpansionTuple{name: "<factor> * <term>"}, ExpansionTuple{name: "<factor> / <term>"}, ExpansionTuple{name: "<factor>"}},
@@ -56,7 +56,7 @@ var ExprEBNFGrammar = Grammar{
 	"<sign>":    {ExpansionTuple{name: "+"}, ExpansionTuple{name: "-"}},
 	"<integer>": {ExpansionTuple{name: "<digit>+"}},
 	"<digit>":   generateDigits(),
-}
+}}
 
 // Generating characters from '1' to '9'
 func generateOneNine() []ExpansionTuple {
@@ -77,7 +77,7 @@ func generateCharactersWithoutQuote() []ExpansionTuple {
 	return characters
 }
 
-var JsonEbnfGrammar = Grammar{
+var JsonEbnfGrammar = Grammar{G: map[string][]ExpansionTuple{
 	"<start>":      {ExpansionTuple{name: "<json>"}},
 	"<json>":       {ExpansionTuple{name: "<element>"}},
 	"<element>":    {ExpansionTuple{name: "<ws><value><ws>"}},
@@ -99,7 +99,7 @@ var JsonEbnfGrammar = Grammar{
 	"<exp>":        {ExpansionTuple{name: ""}, ExpansionTuple{name: "E<sign><digits>"}, ExpansionTuple{name: "e<sign><digits>"}},
 	"<sign>":       {ExpansionTuple{name: ""}, ExpansionTuple{name: "+"}, ExpansionTuple{name: "-"}},
 	"<ws>":         {ExpansionTuple{name: " "}},
-}
+}}
 
 func TestNonTerminals(t *testing.T) {
 	var tests = []struct {
@@ -156,15 +156,15 @@ func TestExtendGrammar(t *testing.T) {
 		{"<idchar>", []string{"a", "b", "c", "d"}},
 	}
 
-	SimpleNonterminalGrammar.Extend(Grammar{
+	SimpleNonterminalGrammar.Extend(Grammar{G: map[string][]ExpansionTuple{
 		"<identifier>": []ExpansionTuple{{name: "<idchar>"}, {name: "<identifier><idchar>"}},
 		"<idchar>":     []ExpansionTuple{{name: "a"}, {name: "b"}, {name: "c"}, {name: "d"}},
-	})
+	}})
 
 	for _, test := range tests {
-		for i, v := range SimpleNonterminalGrammar[test.key] {
+		for i, v := range SimpleNonterminalGrammar.G[test.key] {
 			if v.GetName() != test.expected.([]string)[i] {
-				t.Errorf("Extend() for key %s = %v; want %v", test.key, SimpleNonterminalGrammar[test.key], test.expected.([]string)[i])
+				t.Errorf("Extend() for key %s = %v; want %v", test.key, SimpleNonterminalGrammar.G[test.key], test.expected.([]string)[i])
 				break
 			}
 		}

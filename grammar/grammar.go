@@ -8,18 +8,19 @@ import (
 	"math/rand"
 	"os"
 	"regexp"
+	"sync"
 )
 
 const StartSymbol = "<start>"
 
 var ReNonterminal = regexp.MustCompile("(<[^<> ]*>)")
-var SimpleNonterminalGrammar = Grammar{
-	"<start>":       []ExpansionTuple{{name: "<nonterminal>"}},
-	"<nonterminal>": []ExpansionTuple{{name: "<left-angle><identifier><right-angle>"}},
-	"<left-angle>":  []ExpansionTuple{{name: "<"}},
-	"<right-angle>": []ExpansionTuple{{name: ">"}},
-	"<identifier>":  []ExpansionTuple{{name: "id"}}, // for now
-}
+var SimpleNonterminalGrammar = Grammar{G: map[string][]ExpansionTuple{
+	"<start>":       {{name: "<nonterminal>"}},
+	"<nonterminal>": {{name: "<left-angle><identifier><right-angle>"}},
+	"<left-angle>":  {{name: "<"}},
+	"<right-angle>": {{name: ">"}},
+	"<identifier>":  {{name: "id"}}, // for now
+}}
 
 type Option map[string]interface{}
 type ExpansionTuple struct {
@@ -46,10 +47,16 @@ func (e *ExpansionTuple) GetOpt() Option {
 	return e.info
 }
 
-type Grammar map[string][]ExpansionTuple
+var lock sync.Once
 
-func (grammar Grammar) ExpandSymbol(symbol string) []ExpansionTuple {
-	expansions, ok := grammar[symbol]
+type Grammar struct {
+	G              map[string][]ExpansionTuple
+	symbolCache    map[string]float64
+	expansionCache map[string]float64
+}
+
+func (grammar *Grammar) ExpandSymbol(symbol string) []ExpansionTuple {
+	expansions, ok := grammar.G[symbol]
 	if !ok {
 		return nil
 	}
@@ -65,18 +72,18 @@ func (grammar Grammar) ExpandSymbol(symbol string) []ExpansionTuple {
 	chosenElement := newChildren[rand.Intn(len(newChildren))]
 	return chosenElement
 }
-func (grammar Grammar) GetSymbol(symbol string) []ExpansionTuple {
-	return grammar[symbol]
+func (grammar *Grammar) GetSymbol(symbol string) []ExpansionTuple {
+	return grammar.G[symbol]
 }
 
-func (grammar Grammar) Extend(extension Grammar) {
-	for k, v := range extension {
-		grammar[k] = v
+func (grammar *Grammar) Extend(extension Grammar) {
+	for k, v := range extension.G {
+		grammar.G[k] = v
 	}
 }
-func (grammar Grammar) OptsUsed() Set {
+func (grammar *Grammar) OptsUsed() Set {
 	usedOpts := make(Set)
-	for _, expansions := range grammar {
+	for _, expansions := range grammar.G {
 		for _, expansion := range expansions {
 			for opt := range expansion.GetOpt() {
 				usedOpts[opt] = true
@@ -85,7 +92,7 @@ func (grammar Grammar) OptsUsed() Set {
 	}
 	return usedOpts
 }
-func (grammar Grammar) SetOpts(symbol string, expainsion ExpansionTuple, opt Option) {
+func (grammar *Grammar) SetOpts(symbol string, expainsion ExpansionTuple, opt Option) {
 	expansions := grammar.GetSymbol(symbol)
 	for i, v := range expansions {
 		if v.GetName() != expainsion.GetName() {
@@ -101,20 +108,20 @@ func (grammar Grammar) SetOpts(symbol string, expainsion ExpansionTuple, opt Opt
 			}
 		}
 		if newOpt != nil {
-			grammar[symbol][i] = ExpansionTuple{name: expainsion.GetName(), info: newOpt}
+			grammar.G[symbol][i] = ExpansionTuple{name: expainsion.GetName(), info: newOpt}
 		} else {
-			grammar[symbol][i] = ExpansionTuple{name: expainsion.GetName()}
+			grammar.G[symbol][i] = ExpansionTuple{name: expainsion.GetName()}
 		}
 	}
 	return
 }
 
-func (grammar Grammar) defUsedNonterminals(startSymbol string) (Set, Set, error) {
+func (grammar *Grammar) defUsedNonterminals(startSymbol string) (Set, Set, error) {
 	definedNonterminals := make(Set)
 	usedNonterminals := make(Set)
 	usedNonterminals[startSymbol] = true
 
-	for definedNonterminal, expansions := range grammar {
+	for definedNonterminal, expansions := range grammar.G {
 		definedNonterminals[definedNonterminal] = true
 
 		if len(expansions) == 0 {
@@ -131,13 +138,13 @@ func (grammar Grammar) defUsedNonterminals(startSymbol string) (Set, Set, error)
 	return definedNonterminals, usedNonterminals, nil
 }
 
-func (grammar Grammar) reachableNonterminals(startSymbol string) map[string]struct{} {
+func (grammar *Grammar) reachableNonterminals(startSymbol string) map[string]struct{} {
 	reachable := make(map[string]struct{})
 
-	var findReachableNonterminals func(grammar Grammar, symbol string)
-	findReachableNonterminals = func(grammar Grammar, symbol string) {
+	var findReachableNonterminals func(grammar *Grammar, symbol string)
+	findReachableNonterminals = func(grammar *Grammar, symbol string) {
 		reachable[symbol] = struct{}{}
-		for _, expansion := range grammar[symbol] {
+		for _, expansion := range grammar.G[symbol] {
 			for _, nonterminal := range NonTerminals(expansion.GetName()) {
 				if _, ok := reachable[nonterminal]; !ok {
 					findReachableNonterminals(grammar, nonterminal)
@@ -150,10 +157,10 @@ func (grammar Grammar) reachableNonterminals(startSymbol string) map[string]stru
 	return reachable
 }
 
-func (grammar Grammar) unreachableNonterminals(startSymbol string) map[string]struct{} {
+func (grammar *Grammar) unreachableNonterminals(startSymbol string) map[string]struct{} {
 	reachable := grammar.reachableNonterminals(startSymbol)
 	unreachable := make(map[string]struct{})
-	for key := range grammar {
+	for key := range grammar.G {
 		if _, ok := reachable[key]; !ok {
 			unreachable[key] = struct{}{}
 		}
@@ -161,7 +168,7 @@ func (grammar Grammar) unreachableNonterminals(startSymbol string) map[string]st
 	return unreachable
 }
 
-func (grammar Grammar) IsValidGrammar(startSymbol string, supportedOpts Set) bool {
+func (grammar *Grammar) IsValidGrammar(startSymbol string, supportedOpts Set) bool {
 	if startSymbol == "" {
 		startSymbol = StartSymbol
 	}
@@ -171,7 +178,7 @@ func (grammar Grammar) IsValidGrammar(startSymbol string, supportedOpts Set) boo
 		return false
 	}
 
-	if _, ok := grammar[StartSymbol]; ok {
+	if _, ok := grammar.G[StartSymbol]; ok {
 		usedNonterminals[StartSymbol] = true
 	}
 
@@ -185,7 +192,7 @@ func (grammar Grammar) IsValidGrammar(startSymbol string, supportedOpts Set) boo
 	unreachable := grammar.unreachableNonterminals(startSymbol)
 	msgStartSymbol := startSymbol
 
-	if _, ok := grammar[StartSymbol]; ok {
+	if _, ok := grammar.G[StartSymbol]; ok {
 		reachableFromStart := grammar.reachableNonterminals(StartSymbol)
 		for terminal := range reachableFromStart {
 			delete(unreachable, terminal)
@@ -211,14 +218,14 @@ func (grammar Grammar) IsValidGrammar(startSymbol string, supportedOpts Set) boo
 	return len(usedNonterminals) == len(definedNonterminals) && len(unreachable) == 0
 }
 
-func (grammar Grammar) Visualize(filename string) {
+func (grammar *Grammar) Visualize(filename string) {
 	g := graphviz.New()
 	graph, _ := g.Graph()
 
 	nodes := make(map[string]*cgraph.Node)
 
 	// Create nodes
-	for key := range grammar {
+	for key := range grammar.G {
 		node, _ := graph.CreateNode(key)
 		nodes[key] = node
 		if key != StartSymbol {
@@ -229,7 +236,7 @@ func (grammar Grammar) Visualize(filename string) {
 	}
 
 	// Create edges
-	for key, expansions := range grammar {
+	for key, expansions := range grammar.G {
 		for _, expansion := range expansions {
 
 			target, exists := nodes[expansion.GetName()]
@@ -266,11 +273,17 @@ func (grammar Grammar) Visualize(filename string) {
 	}
 }
 
-func (grammar Grammar) SymbolCost(symbol ExpansionTuple, seen map[string]struct{}) float64 {
+func (grammar *Grammar) SymbolCost(symbol ExpansionTuple, seen map[string]struct{}) float64 {
+	if grammar.symbolCache == nil {
+		grammar.symbolCache = make(map[string]float64)
+	}
+	if cost, ok := grammar.symbolCache[symbol.GetName()]; ok {
+		return cost
+	}
 	symbols := symbol.Expand()
 	totalCost := 0.0
 	for _, s := range symbols {
-		expansions, ok := grammar[s.GetName()]
+		expansions, ok := grammar.G[s.GetName()]
 		if !ok {
 			return 0 // terminal
 		}
@@ -287,10 +300,17 @@ func (grammar Grammar) SymbolCost(symbol ExpansionTuple, seen map[string]struct{
 		}
 		totalCost += minCost
 	}
+	grammar.symbolCache[symbol.GetName()] = totalCost
 	return totalCost
 }
 
-func (grammar Grammar) ExpansionCost(expansion ExpansionTuple, seen map[string]struct{}) float64 {
+func (grammar *Grammar) ExpansionCost(expansion ExpansionTuple, seen map[string]struct{}) float64 {
+	if grammar.expansionCache == nil {
+		grammar.expansionCache = make(map[string]float64)
+	}
+	if cost, ok := grammar.expansionCache[expansion.GetName()]; ok {
+		return cost
+	}
 	symbols := NonTerminals(expansion.GetName())
 	if len(symbols) == 0 {
 		return 1 // no symbol
@@ -315,5 +335,6 @@ func (grammar Grammar) ExpansionCost(expansion ExpansionTuple, seen map[string]s
 	for _, s := range symbols {
 		total += grammar.SymbolCost(ExpansionTuple{name: s}, newSeen)
 	}
+	grammar.expansionCache[expansion.GetName()] = total
 	return total
 }

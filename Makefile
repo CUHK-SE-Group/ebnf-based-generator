@@ -1,5 +1,5 @@
 clean:
-	rm generator/grammar/*.png
+	rm grammar/*.png
 
 test:
 	go test ./...
