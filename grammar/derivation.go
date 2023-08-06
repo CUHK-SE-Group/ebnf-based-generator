@@ -3,6 +3,7 @@ package grammar
 import (
 	"context"
 	"fmt"
+
 	"github.com/goccy/go-graphviz"
 	"github.com/goccy/go-graphviz/cgraph"
 )

@@ -92,6 +92,56 @@ func MinimalCostExpand(ctx *DerivationContext, tree *DerivationTree) {
 }
 
 func MaximumCostExpansion(ctx *DerivationContext, tree *DerivationTree) {
+	nonTerminals := tree.GetNonTerminals()
+	var maxCostSymbol *Node
+	var cost = math.Inf(-1)
+
+	for _, symbol := range nonTerminals {
+		children := symbol.ExpansionTuple.Expand()
+		for _, child := range children {
+			curCost := tree.gram.SymbolCost(child, make(map[string]struct{}))
+			if cost < curCost {
+				cost = curCost
+				maxCostSymbol = symbol
+			}
+		}
+	}
+
+	if maxCostSymbol == nil {
+		ctx.preExpansions = nil
+		return
+	}
+
+	children := maxCostSymbol.ExpansionTuple.Expand()
+	maxCostSymbol.Children = make([]*Node, 0)
+	expPair := make([]ExpansionPair, 0)
+	for _, child := range children {
+		if IsNonTerminals(child.GetName()) {
+			maxCost := math.Inf(-1)
+			var tmpChildren *Node
+			expansions := tree.gram.G[child.GetName()]
+			for _, expansion := range expansions {
+				cost := tree.gram.SymbolCost(expansion, make(map[string]struct{}))
+				if maxCost < cost {
+					maxCost = cost
+					tmpChildren = &Node{ExpansionTuple: expansion}
+				}
+			}
+
+			if child.GetName() != maxCostSymbol.GetName() {
+				maxCostSymbol.Children = append(maxCostSymbol.Children, &Node{ExpansionTuple: child, Children: []*Node{tmpChildren}})
+				expPair = append(expPair, ExpansionPair{maxCostSymbol.ExpansionTuple, child})
+				expPair = append(expPair, ExpansionPair{child, tmpChildren.ExpansionTuple})
+			} else {
+				expPair = append(expPair, ExpansionPair{maxCostSymbol.ExpansionTuple, tmpChildren.ExpansionTuple})
+				maxCostSymbol.Children = append(maxCostSymbol.Children, tmpChildren)
+			}
+		} else {
+			maxCostSymbol.Children = append(maxCostSymbol.Children, &Node{ExpansionTuple: child})
+			expPair = append(expPair, ExpansionPair{maxCostSymbol.ExpansionTuple, child})
+		}
+	}
+	ctx.preExpansions = expPair
 }
 
 // ThreePhaseExpansion https://www.fuzzingbook.org/html/GrammarFuzzer.html#Three-Expansion-Phases
