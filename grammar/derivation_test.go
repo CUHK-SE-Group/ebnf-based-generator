@@ -41,7 +41,7 @@ func TestDerivationTree_RandomExpand(t *testing.T) {
 }
 
 func TestDerivationTree_MaximumCostExpansion(t *testing.T) {
-	tree := NewDerivationTree(URLGrammar, StartSymbol, DFS, MaximumCostExpansion)
+	tree := NewDerivationTree(URLGrammar, StartSymbol, DFS, MaximumCostExpand)
 	cnt := 0
 	finish := false
 	ctx := NewDerivationContext(context.Background())

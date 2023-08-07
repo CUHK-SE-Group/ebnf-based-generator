@@ -2,13 +2,14 @@ package grammar
 
 import (
 	"fmt"
-	"github.com/goccy/go-graphviz"
-	"github.com/goccy/go-graphviz/cgraph"
 	"math"
 	"math/rand"
 	"os"
 	"regexp"
 	"sync"
+
+	"github.com/goccy/go-graphviz"
+	"github.com/goccy/go-graphviz/cgraph"
 )
 
 const StartSymbol = "<start>"
@@ -273,7 +274,7 @@ func (grammar *Grammar) Visualize(filename string) {
 	}
 }
 
-func (grammar *Grammar) SymbolCost(symbol ExpansionTuple, seen map[string]struct{}) float64 {
+func (grammar *Grammar) SymbolCost(symbol ExpansionTuple, seen map[string]struct{}, max bool) float64 {
 	if grammar.symbolCache == nil {
 		grammar.symbolCache = make(map[string]float64)
 	}
@@ -288,23 +289,34 @@ func (grammar *Grammar) SymbolCost(symbol ExpansionTuple, seen map[string]struct
 			return 0 // terminal
 		}
 		minCost := math.Inf(1)
+		maxCost := math.Inf(-1)
 		for _, expansion := range expansions {
 			seen[s.GetName()] = struct{}{}
-			cost := grammar.ExpansionCost(expansion, seen)
+			cost := grammar.ExpansionCost(expansion, seen, max)
 			if cost < minCost {
 				minCost = cost
 			}
+			if cost > maxCost {
+				maxCost = cost
+			}
 		}
-		if minCost == math.Inf(1) {
-			return minCost
+		if max {
+			if maxCost == math.Inf(-1) {
+				return maxCost
+			}
+			totalCost += maxCost
+		} else {
+			if minCost == math.Inf(1) {
+				return minCost
+			}
+			totalCost += minCost
 		}
-		totalCost += minCost
 	}
 	grammar.symbolCache[symbol.GetName()] = totalCost
 	return totalCost
 }
 
-func (grammar *Grammar) ExpansionCost(expansion ExpansionTuple, seen map[string]struct{}) float64 {
+func (grammar *Grammar) ExpansionCost(expansion ExpansionTuple, seen map[string]struct{}, max bool) float64 {
 	if grammar.expansionCache == nil {
 		grammar.expansionCache = make(map[string]float64)
 	}
@@ -333,7 +345,7 @@ func (grammar *Grammar) ExpansionCost(expansion ExpansionTuple, seen map[string]
 	// inside + 1
 	total := 1.0
 	for _, s := range symbols {
-		total += grammar.SymbolCost(ExpansionTuple{name: s}, newSeen)
+		total += grammar.SymbolCost(ExpansionTuple{name: s}, newSeen, max)
 	}
 	grammar.expansionCache[expansion.GetName()] = total
 	return total
