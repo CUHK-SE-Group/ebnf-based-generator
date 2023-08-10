@@ -4,3 +4,4 @@
 .antlr/
 *output*
 parser/ebnf/
+go.sum
