@@ -2,11 +2,15 @@ package parser
 
 import (
 	"fmt"
+	"github.com/CUHK-SE-Group/ebnf-based-generator/parser/ebnf"
+	"github.com/antlr4-go/antlr/v4"
 	"math/rand"
 
 	"github.com/golang/glog"
 	"github.com/lucasjones/reggen"
 )
+
+var systemOperators map[string]Operator
 
 type handler func(*Context, *Grammar, *Result)
 
@@ -20,8 +24,8 @@ type Operator interface {
 type GenericOperator struct {
 	beforeGenHandlers []handler
 	genHandler        handler
-	afterGenHandlers []handler
-	text             string
+	afterGenHandlers  []handler
+	text              string
 }
 
 func systemBeforeGen(ctx *Context, g *Grammar, r *Result) {
@@ -81,6 +85,22 @@ func RepGen(ctx *Context, g *Grammar, r *Result) {
 	}
 }
 
+var Plus = GenericOperator{
+	beforeGenHandlers: []handler{systemBeforeGen},
+	afterGenHandlers:  []handler{systemAfterGen},
+	genHandler:        PlusGen,
+	text:              "Plus",
+}
+
+func PlusGen(ctx *Context, g *Grammar, r *Result) {
+	times := rand.Int()%99 + 1
+	selected := (*g.Symbols)[0]
+	for i := 0; i < times; i++ {
+		r.AddNode(selected)
+		selected.Generate(r)
+	}
+}
+
 var Ext = GenericOperator{
 	beforeGenHandlers: []handler{systemBeforeGen},
 	afterGenHandlers:  []handler{systemAfterGen},
@@ -126,4 +146,32 @@ func RegexGen(ctx *Context, g *Grammar, r *Result) {
 	}
 	// r.AddNode(g)
 	r.AddOutput(str)
+}
+func Init() {
+	systemOperators = make(map[string]Operator)
+	RegisterOperator(&Or)
+	RegisterOperator(&Rep)
+	RegisterOperator(&Ext)
+	RegisterOperator(&Cat)
+	RegisterOperator(&Regex)
+	RegisterOperator(&Plus)
+}
+func RegisterOperator(op Operator) {
+	if op.GetText() == "" {
+		glog.Fatalf("Operator must have a name")
+	}
+	systemOperators[op.GetText()] = op
+}
+func ParseGrammarDefinition(file string, startSymbol string) (*Grammar, error) {
+	is, err := antlr.NewFileStream(file)
+	if err != nil {
+		return nil, err
+	}
+	lexer := ebnf.NewEBNFLexer(is)
+	stream := antlr.NewCommonTokenStream(lexer, antlr.TokenDefaultChannel)
+	parser := ebnf.NewEBNFParser(stream)
+	listener := newEbnfListener()
+	antlr.ParseTreeWalkerDefault.Walk(listener, parser.Ebnf())
+	g := listener.productions[startSymbol]
+	return g, nil
 }

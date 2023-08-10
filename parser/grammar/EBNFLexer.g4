@@ -10,6 +10,7 @@ SEMICOLON: ';';
 
 OR : '|';
 REP: '*';
+PLUS: '+';
 EXT: '?';
 
 QUOTE: '\'' -> pushMode(IN_STRING);

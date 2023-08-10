@@ -21,7 +21,7 @@ type ebnfListener struct {
 }
 
 func newEbnfListener() *ebnfListener {
-	return &ebnfListener{
+	listener := &ebnfListener{
 		context:           NewContext(),
 		currentSymbolId:   0,
 		currentProduction: &Grammar{},
@@ -29,6 +29,7 @@ func newEbnfListener() *ebnfListener {
 		stack:             []*Grammar{},
 		forkList:          map[*Grammar][]int{},
 	}
+	return listener
 }
 
 func (l *ebnfListener) addToForkList(g *Grammar, id int) {
@@ -86,7 +87,7 @@ func (l *ebnfListener) EnterProduction(ctx *ebnf.ProductionContext) {
 		l.clear()
 		l.push(p)
 	} else {
-		new := NewGrammar(NewContext(), GrammarProduction, &Cat, name, "")
+		new := NewGrammar(NewContext(), GrammarProduction, systemOperators["Catenate"], name, "")
 		l.currentProduction = new
 		l.clear()
 		l.save(new)
@@ -98,9 +99,11 @@ func (l *ebnfListener) EnterSymbolWithUOp(ctx *ebnf.SymbolWithUOpContext) {
 	var op Operator
 	switch ctx.UnaryOp().GetStart().GetTokenType() {
 	case ebnf.EBNFLexerREP:
-		op = &Rep
+		op = systemOperators["Repeat"]
 	case ebnf.EBNFLexerEXT:
-		op = &Ext
+		op = systemOperators["Exist"]
+	case ebnf.EBNFLexerPLUS:
+		op = systemOperators["Plus"]
 	}
 	expr := NewGrammar(l.getCurrentCtx(), GrammarInner, op, l.generateId(), "")
 	l.top().AddSymbol(expr)
@@ -118,7 +121,7 @@ func (l *ebnfListener) EnterSymbolWithBOp(ctx *ebnf.SymbolWithBOpContext) {
 	var op Operator
 	switch ctx.BinaryOp().GetStart().GetTokenType() {
 	case ebnf.EBNFLexerOR:
-		op = &Or
+		op = systemOperators["Or"]
 	}
 	if l.top().GetOperator() != op {
 		expr := NewGrammar(l.getCurrentCtx(), GrammarInner, op, l.generateId(), "")
@@ -139,7 +142,7 @@ func (l *ebnfListener) ExitSymbolWithBOp(ctx *ebnf.SymbolWithBOpContext) {
 
 func (l *ebnfListener) EnterSubSymbol(ctx *ebnf.SubSymbolContext) {
 	fmt.Fprintf(os.Stderr, "SUBSYM the symbol is %s\n", ctx.GetText())
-	expr := NewGrammar(l.getCurrentCtx(), GrammarInner, &Cat, l.generateId(), "")
+	expr := NewGrammar(l.getCurrentCtx(), GrammarInner, systemOperators["Catenate"], l.generateId(), "")
 	l.top().AddSymbol(expr)
 	l.push(expr)
 }
@@ -150,7 +153,7 @@ func (l *ebnfListener) ExitSubSymbol(ctx *ebnf.SubSymbolContext) {
 
 func (l *ebnfListener) EnterSymbolWithCat(ctx *ebnf.SymbolWithCatContext) {
 	fmt.Fprintf(os.Stderr, "CAT the symbol is %s\n", ctx.GetText())
-	expr := NewGrammar(l.getCurrentCtx(), GrammarInner, &Cat, l.generateId(), "")
+	expr := NewGrammar(l.getCurrentCtx(), GrammarInner, systemOperators["Catenate"], l.generateId(), "")
 	l.top().AddSymbol(expr)
 	l.push(expr)
 }
@@ -171,7 +174,7 @@ func (l *ebnfListener) EnterSubProduction(ctx *ebnf.SubProductionContext) {
 		}
 		l.top().AddSymbol(new)
 	} else {
-		new := NewGrammar(NewContext(), GrammarProduction, &Cat, proName, "")
+		new := NewGrammar(NewContext(), GrammarProduction, systemOperators["Catenate"], proName, "")
 		placeholder := new.ShallowCopy().SetID(l.generateId() + "#" + proName)
 		l.productions[proName] = new
 		id := l.top().AddSymbol(placeholder)
@@ -185,6 +188,6 @@ func (l *ebnfListener) ExitEbnf(ctx *ebnf.EbnfContext) {
 
 func (l *ebnfListener) EnterTerminal(ctx *ebnf.TerminalContext) {
 	fmt.Fprintf(os.Stderr, "TER the symbol is %s\n", ctx.GetText())
-	expr := NewGrammar(l.getCurrentCtx(), GrammarTerminal, &Regex, l.generateId()+"#"+ctx.GetText(), ctx.GetText())
+	expr := NewGrammar(l.getCurrentCtx(), GrammarTerminal, systemOperators["Regex"], l.generateId()+"#"+ctx.GetText(), ctx.GetText())
 	l.top().AddSymbol(expr)
 }

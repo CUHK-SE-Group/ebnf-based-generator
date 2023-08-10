@@ -10,7 +10,7 @@ regexContents : TEXT
                | ESCAPE
                ;
 
-unaryOp: REP | EXT;
+unaryOp: REP | EXT | PLUS;
 binaryOp: OR;
 
 symbol:
