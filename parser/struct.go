@@ -2,8 +2,8 @@ package parser
 
 import (
 	"fmt"
-
 	"github.com/goccy/go-graphviz"
+
 	"github.com/goccy/go-graphviz/cgraph"
 	"github.com/golang/glog"
 )

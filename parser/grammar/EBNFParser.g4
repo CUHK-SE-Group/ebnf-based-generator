@@ -13,8 +13,9 @@ regexContents : TEXT
 unaryOp: REP | EXT;
 binaryOp: OR;
 
-expr: expr binaryOp expr+ #SymbolWithBOp
-    | tmp+ #SymbolWithCat
+symbol:
+     ID #SubProduction
+    | regex #Terminal
     ;
 
 tmp: symbol #None
@@ -22,11 +23,9 @@ tmp: symbol #None
     | tmp unaryOp #SymbolWithUOp
     ;
 
-symbol: 
-     ID #SubProduction
-    | regex #Terminal
+expr: expr binaryOp expr+ #SymbolWithBOp
+    | tmp+ #SymbolWithCat
     ;
-
 production: ID COLON expr SEMICOLON;
 
 ebnf : production*;

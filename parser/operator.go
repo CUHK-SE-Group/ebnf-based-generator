@@ -17,9 +17,9 @@ type Operator interface {
 	GetText() string
 }
 
-type GenricOperator struct {
-	beforeGenHanders []handler
-	genHandler       handler
+type GenericOperator struct {
+	beforeGenHandlers []handler
+	genHandler        handler
 	afterGenHandlers []handler
 	text             string
 }
@@ -32,31 +32,31 @@ func systemAfterGen(ctx *Context, g *Grammar, r *Result) {
 	fmt.Println("do something after gen")
 }
 
-func (op *GenricOperator) BeforeGen(ctx *Context, g *Grammar, r *Result) {
-	for _, f := range op.beforeGenHanders {
+func (op *GenericOperator) BeforeGen(ctx *Context, g *Grammar, r *Result) {
+	for _, f := range op.beforeGenHandlers {
 		f(ctx, g, r)
 	}
 }
 
-func (op *GenricOperator) Gen(ctx *Context, g *Grammar, r *Result) {
+func (op *GenericOperator) Gen(ctx *Context, g *Grammar, r *Result) {
 	op.genHandler(ctx, g, r)
 }
 
-func (op *GenricOperator) AfterGen(ctx *Context, g *Grammar, r *Result) {
+func (op *GenericOperator) AfterGen(ctx *Context, g *Grammar, r *Result) {
 	for _, f := range op.afterGenHandlers {
 		f(ctx, g, r)
 	}
 }
 
-func (op *GenricOperator) GetText() string {
+func (op *GenericOperator) GetText() string {
 	return op.text
 }
 
-var Or = GenricOperator{
-	beforeGenHanders: []handler{systemBeforeGen},
-	afterGenHandlers: []handler{systemAfterGen},
-	genHandler:       OrGen,
-	text:             "Or",
+var Or = GenericOperator{
+	beforeGenHandlers: []handler{systemBeforeGen},
+	afterGenHandlers:  []handler{systemAfterGen},
+	genHandler:        OrGen,
+	text:              "Or",
 }
 
 func OrGen(ctx *Context, g *Grammar, r *Result) {
@@ -65,11 +65,11 @@ func OrGen(ctx *Context, g *Grammar, r *Result) {
 	selected.Generate(r)
 }
 
-var Rep = GenricOperator{
-	beforeGenHanders: []handler{systemBeforeGen},
-	afterGenHandlers: []handler{systemAfterGen},
-	genHandler:       RepGen,
-	text:             "Repeat",
+var Rep = GenericOperator{
+	beforeGenHandlers: []handler{systemBeforeGen},
+	afterGenHandlers:  []handler{systemAfterGen},
+	genHandler:        RepGen,
+	text:              "Repeat",
 }
 
 func RepGen(ctx *Context, g *Grammar, r *Result) {
@@ -81,11 +81,11 @@ func RepGen(ctx *Context, g *Grammar, r *Result) {
 	}
 }
 
-var Ext = GenricOperator{
-	beforeGenHanders: []handler{systemBeforeGen},
-	afterGenHandlers: []handler{systemAfterGen},
-	genHandler:       ExtGen,
-	text:             "Exist",
+var Ext = GenericOperator{
+	beforeGenHandlers: []handler{systemBeforeGen},
+	afterGenHandlers:  []handler{systemAfterGen},
+	genHandler:        ExtGen,
+	text:              "Exist",
 }
 
 func ExtGen(ctx *Context, g *Grammar, r *Result) {
@@ -97,11 +97,11 @@ func ExtGen(ctx *Context, g *Grammar, r *Result) {
 	}
 }
 
-var Cat = GenricOperator{
-	beforeGenHanders: []handler{systemBeforeGen},
-	afterGenHandlers: []handler{systemAfterGen},
-	genHandler:       CatGen,
-	text:             "Catenate",
+var Cat = GenericOperator{
+	beforeGenHandlers: []handler{systemBeforeGen},
+	afterGenHandlers:  []handler{systemAfterGen},
+	genHandler:        CatGen,
+	text:              "Catenate",
 }
 
 func CatGen(ctx *Context, g *Grammar, r *Result) {
@@ -111,11 +111,11 @@ func CatGen(ctx *Context, g *Grammar, r *Result) {
 	}
 }
 
-var Regex = GenricOperator{
-	beforeGenHanders: []handler{systemBeforeGen},
-	afterGenHandlers: []handler{systemAfterGen},
-	genHandler:       RegexGen,
-	text:             "Regex",
+var Regex = GenericOperator{
+	beforeGenHandlers: []handler{systemBeforeGen},
+	afterGenHandlers:  []handler{systemAfterGen},
+	genHandler:        RegexGen,
+	text:              "Regex",
 }
 
 func RegexGen(ctx *Context, g *Grammar, r *Result) {
