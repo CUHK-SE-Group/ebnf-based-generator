@@ -1,3 +1,6 @@
 .idea/
 *.png
 .DS_Store
+.antlr/
+*output*
+parser/ebnf/
