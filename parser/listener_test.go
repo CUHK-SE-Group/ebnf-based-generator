@@ -21,7 +21,7 @@ func TestParse(t *testing.T) {
 	listener := newEbnfListener()
 	antlr.ParseTreeWalkerDefault.Walk(listener, parser.Ebnf())
 	for k, g := range listener.productions {
-		if k == "test_production" || k == "like" || k == "parens" {
+		if k == "test_production" || k == "like" || k == "parens" || k == "HexLetter" {
 			path := fmt.Sprintf("./testdata/parse.%s.output.png", k)
 			g.Visualize(path, false)
 		}

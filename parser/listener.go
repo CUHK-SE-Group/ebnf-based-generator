@@ -129,14 +129,13 @@ func (l *ebnfListener) EnterSymbolWithBOp(ctx *ebnf.SymbolWithBOpContext) {
 		l.push(expr)
 		pushed = true
 		fmt.Fprintf(os.Stderr, "BOP the symbol is %s, left is %s, right is %s, push %s\n", ctx.GetText(), ctx.Expr(0).GetText(), ctx.Expr(1).GetText(), expr.ID)
-	} else {
-		pushed = false
 	}
 }
 
 func (l *ebnfListener) ExitSymbolWithBOp(ctx *ebnf.SymbolWithBOpContext) {
 	if pushed {
 		l.pop()
+		pushed = false
 	}
 }
 
