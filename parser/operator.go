@@ -1,7 +1,6 @@
 package parser
 
 import (
-	"fmt"
 	"github.com/CUHK-SE-Group/ebnf-based-generator/parser/ebnf"
 	"github.com/antlr4-go/antlr/v4"
 	"math/rand"
@@ -29,11 +28,9 @@ type GenericOperator struct {
 }
 
 func systemBeforeGen(ctx *Context, g *Grammar, r *Result) {
-	fmt.Println("do something before gen")
 }
 
 func systemAfterGen(ctx *Context, g *Grammar, r *Result) {
-	fmt.Println("do something after gen")
 }
 
 func (op *GenericOperator) BeforeGen(ctx *Context, g *Grammar, r *Result) {
@@ -77,7 +74,7 @@ var Rep = GenericOperator{
 }
 
 func RepGen(ctx *Context, g *Grammar, r *Result) {
-	times := rand.Int() % 100
+	times := rand.Int() % 3
 	selected := (*g.Symbols)[0]
 	for i := 0; i < times; i++ {
 		r.AddNode(selected)
@@ -93,7 +90,7 @@ var Plus = GenericOperator{
 }
 
 func PlusGen(ctx *Context, g *Grammar, r *Result) {
-	times := rand.Int()%99 + 1
+	times := rand.Int()%3 + 1
 	selected := (*g.Symbols)[0]
 	for i := 0; i < times; i++ {
 		r.AddNode(selected)
@@ -139,7 +136,7 @@ var Regex = GenericOperator{
 }
 
 func RegexGen(ctx *Context, g *Grammar, r *Result) {
-	str, err := reggen.Generate(g.GetContent(), 100)
+	str, err := reggen.Generate(g.GetContent(), 10)
 	glog.Errorf("Generating: %s\n", g.GetContent())
 	if err != nil {
 		glog.Warningf("can not generate regex: %s", g.GetContent())

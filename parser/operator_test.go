@@ -13,6 +13,7 @@ func TestGeneration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Can not open testdata")
 	}
+	Init()
 	lexer := ebnf.NewEBNFLexer(is)
 	stream := antlr.NewCommonTokenStream(lexer, antlr.TokenDefaultChannel)
 	parser := ebnf.NewEBNFParser(stream)

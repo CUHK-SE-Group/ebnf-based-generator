@@ -3,10 +3,13 @@ package parser
 import (
 	"fmt"
 	"github.com/goccy/go-graphviz"
+	"strings"
 
 	"github.com/goccy/go-graphviz/cgraph"
 	"github.com/golang/glog"
 )
+
+var visNode map[string]*cgraph.Node
 
 const (
 	GrammarProduction = 1
@@ -234,7 +237,7 @@ func (g *Grammar) Generate(r *Result) *Result {
 func (g *Grammar) Visualize(filename string, expandSub bool) {
 	gh := graphviz.New()
 	graph, _ := gh.Graph()
-
+	visNode = make(map[string]*cgraph.Node)
 	g.addNodeToGraph(graph, nil, g.GetOperator().GetText(), expandSub)
 
 	err := gh.RenderFilename(graph, graphviz.PNG, filename)
@@ -244,10 +247,25 @@ func (g *Grammar) Visualize(filename string, expandSub bool) {
 }
 
 func (g *Grammar) addNodeToGraph(graph *cgraph.Graph, parent *cgraph.Node, label string, expandSub bool) {
-	n, err := graph.CreateNode(g.ID)
-	if err != nil {
-		panic(err)
+	var n *cgraph.Node
+	visited := false
+	fmt.Println(g.ID)
+	if strings.Contains(g.ID, "EOF") {
+		return
 	}
+	if node, ok := visNode[g.ID]; ok {
+		n = node
+		visited = true
+		return
+	} else {
+		node, err := graph.CreateNode(g.ID)
+		if err != nil {
+			panic(err)
+		}
+		n = node
+		visNode[g.ID] = n
+	}
+
 	if parent != nil {
 		edge, err := graph.CreateEdge(label, parent, n)
 		if err != nil {
@@ -255,7 +273,7 @@ func (g *Grammar) addNodeToGraph(graph *cgraph.Graph, parent *cgraph.Node, label
 		}
 		edge.SetLabel(label)
 	}
-	if parent != nil && g.Type == GrammarProduction && !expandSub {
+	if (parent != nil && g.Type == GrammarProduction && !expandSub) || visited {
 		return
 	}
 	for _, child := range *g.Symbols {

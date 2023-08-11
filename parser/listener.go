@@ -83,11 +83,14 @@ func (l *ebnfListener) EnterProduction(ctx *ebnf.ProductionContext) {
 	l.currentSymbolId = 0
 	name := ctx.ID().GetText()
 	if p, ok := l.productions[name]; ok {
+		// if the production has been parsed, then ...
 		l.currentProduction = p
 		l.clear()
 		l.push(p)
 	} else {
+		// a new grammar tree
 		new := NewGrammar(NewContext(), GrammarProduction, systemOperators["Catenate"], name, "")
+		// save the production and clean the stack for a new round
 		l.currentProduction = new
 		l.clear()
 		l.save(new)
@@ -105,8 +108,11 @@ func (l *ebnfListener) EnterSymbolWithUOp(ctx *ebnf.SymbolWithUOpContext) {
 	case ebnf.EBNFLexerPLUS:
 		op = systemOperators["Plus"]
 	}
+	// generate a new node
 	expr := NewGrammar(l.getCurrentCtx(), GrammarInner, op, l.generateId(), "")
+	// add node to its parent
 	l.top().AddSymbol(expr)
+	// traverse children
 	l.push(expr)
 	fmt.Fprintf(os.Stderr, "UOP the symbol is %s, push %s\n", ctx.GetText(), expr.ID)
 }
@@ -115,7 +121,7 @@ func (l *ebnfListener) ExitSymbolWithUOp(ctx *ebnf.SymbolWithUOpContext) {
 	l.pop()
 }
 
-var pushed bool
+var pushed []bool = make([]bool, 0)
 
 func (l *ebnfListener) EnterSymbolWithBOp(ctx *ebnf.SymbolWithBOpContext) {
 	var op Operator
@@ -127,22 +133,26 @@ func (l *ebnfListener) EnterSymbolWithBOp(ctx *ebnf.SymbolWithBOpContext) {
 		expr := NewGrammar(l.getCurrentCtx(), GrammarInner, op, l.generateId(), "")
 		l.top().AddSymbol(expr)
 		l.push(expr)
-		pushed = true
+		pushed = append(pushed, true)
 		fmt.Fprintf(os.Stderr, "BOP the symbol is %s, left is %s, right is %s, push %s\n", ctx.GetText(), ctx.Expr(0).GetText(), ctx.Expr(1).GetText(), expr.ID)
+	} else {
+		pushed = append(pushed, false)
 	}
 }
 
 func (l *ebnfListener) ExitSymbolWithBOp(ctx *ebnf.SymbolWithBOpContext) {
-	if pushed {
+	if pushed[len(pushed)-1] == true {
 		l.pop()
-		pushed = false
 	}
+	pushed = pushed[:len(pushed)-1]
 }
 
 func (l *ebnfListener) EnterSubSymbol(ctx *ebnf.SubSymbolContext) {
 	fmt.Fprintf(os.Stderr, "SUBSYM the symbol is %s\n", ctx.GetText())
 	expr := NewGrammar(l.getCurrentCtx(), GrammarInner, systemOperators["Catenate"], l.generateId(), "")
+	// add the current node to its parent
 	l.top().AddSymbol(expr)
+	// then it is time to traverse this tree's subtrees.
 	l.push(expr)
 }
 
@@ -152,8 +162,11 @@ func (l *ebnfListener) ExitSubSymbol(ctx *ebnf.SubSymbolContext) {
 
 func (l *ebnfListener) EnterSymbolWithCat(ctx *ebnf.SymbolWithCatContext) {
 	fmt.Fprintf(os.Stderr, "CAT the symbol is %s\n", ctx.GetText())
+	// new a node that express the current node
 	expr := NewGrammar(l.getCurrentCtx(), GrammarInner, systemOperators["Catenate"], l.generateId(), "")
+	// add current node to its parent
 	l.top().AddSymbol(expr)
+	// traverse its children
 	l.push(expr)
 }
 

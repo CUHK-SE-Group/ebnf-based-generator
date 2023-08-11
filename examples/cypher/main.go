@@ -25,7 +25,10 @@ func main() {
 	}
 	fmt.Println(grammar.ID)
 
-	grammar.Visualize("examples/cypher/tmp.png", true)
+	//grammar.Visualize("examples/cypher/tmp.png", true)
 	res := grammar.Generate(nil)
 	res.Visualize("./tmp.png")
+	for _, s := range res.GetOutput() {
+		fmt.Printf("%s", s)
+	}
 }
