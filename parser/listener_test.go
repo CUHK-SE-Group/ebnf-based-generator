@@ -10,6 +10,7 @@ import (
 )
 
 func TestParse(t *testing.T) {
+	Init()
 	is, err := antlr.NewFileStream("./testdata/parse.ebnf")
 	if err != nil {
 		t.Fatalf("Can not open testdata")
