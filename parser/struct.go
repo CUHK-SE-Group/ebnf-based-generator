@@ -87,13 +87,14 @@ func (r *Result) Visualize(filename string) {
 }
 
 type Context struct {
-	// TODO: extend
 	Operators map[string]Operator
+	SymCount  map[string]int
 }
 
 func NewContext() *Context {
 	return &Context{
 		Operators: map[string]Operator{},
+		SymCount:  map[string]int{},
 	}
 }
 
@@ -116,6 +117,9 @@ func (ctx *Context) Copy() *Context {
 	return new
 }
 
+type Config struct {
+	SymbolLimit map[string]int
+}
 type Grammar struct {
 	ID      string
 	Type    int
@@ -123,9 +127,10 @@ type Grammar struct {
 	Content string
 	Root    *Grammar
 	Ctx     *Context
+	Config  *Config
 }
 
-func NewGrammar(ctx *Context, t int, op Operator, id string, content string) *Grammar {
+func NewGrammar(ctx *Context, t int, op Operator, id string, content string, conf *Config) *Grammar {
 	ctx.Operators[id] = op
 	new := &Grammar{
 		ID:      id,
@@ -133,6 +138,7 @@ func NewGrammar(ctx *Context, t int, op Operator, id string, content string) *Gr
 		Symbols: &[]*Grammar{},
 		Content: content,
 		Ctx:     ctx,
+		Config:  conf,
 	}
 	return new.SetRoot(new)
 }
@@ -227,9 +233,9 @@ func (g *Grammar) Generate(r *Result) *Result {
 	}
 	op := g.GetOperator()
 	if op != nil {
-		op.BeforeGen(g.GetCtx(), g, r)
-		op.Gen(g.GetCtx(), g, r)
-		op.AfterGen(g.GetCtx(), g, r)
+		op.BeforeGen(g, r)
+		op.Gen(g, r)
+		op.AfterGen(g, r)
 	}
 	return r
 }

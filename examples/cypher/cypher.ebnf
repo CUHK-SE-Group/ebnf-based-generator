@@ -648,7 +648,7 @@ EscapedSymbolicName
                    :  ( '`' ( EscapedSymbolicName_0 )* '`' )+ ;
 
 SP
-  :  ( WHITESPACE )+ ;
+  :  ' ' ;
 
 WHITESPACE
           :  SPACE

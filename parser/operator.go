@@ -3,77 +3,77 @@ package parser
 import (
 	"github.com/CUHK-SE-Group/ebnf-based-generator/parser/ebnf"
 	"github.com/antlr4-go/antlr/v4"
-	"math/rand"
-
 	"github.com/golang/glog"
 	"github.com/lucasjones/reggen"
+	"math/rand"
 )
 
 var systemOperators map[string]Operator
 
-type handler func(*Context, *Grammar, *Result)
+type Handler func(*Grammar, *Result)
 
 type Operator interface {
-	BeforeGen(*Context, *Grammar, *Result)
-	Gen(*Context, *Grammar, *Result)
-	AfterGen(*Context, *Grammar, *Result)
+	BeforeGen(*Grammar, *Result)
+	Gen(*Grammar, *Result)
+	AfterGen(*Grammar, *Result)
 	GetText() string
 }
 
 type GenericOperator struct {
-	beforeGenHandlers []handler
-	genHandler        handler
-	afterGenHandlers  []handler
-	text              string
+	BeforeGenHandlers []Handler
+	GenHandler        Handler
+	AfterGenHandlers  []Handler
+	Text              string
 }
 
-func systemBeforeGen(ctx *Context, g *Grammar, r *Result) {
+func systemBeforeGen(g *Grammar, r *Result) {
+
 }
 
-func systemAfterGen(ctx *Context, g *Grammar, r *Result) {
+func systemAfterGen(g *Grammar, r *Result) {
 }
 
-func (op *GenericOperator) BeforeGen(ctx *Context, g *Grammar, r *Result) {
-	for _, f := range op.beforeGenHandlers {
-		f(ctx, g, r)
+func (op *GenericOperator) BeforeGen(g *Grammar, r *Result) {
+	for _, f := range op.BeforeGenHandlers {
+		f(g, r)
 	}
 }
 
-func (op *GenericOperator) Gen(ctx *Context, g *Grammar, r *Result) {
-	op.genHandler(ctx, g, r)
+func (op *GenericOperator) Gen(g *Grammar, r *Result) {
+	op.GenHandler(g, r)
 }
 
-func (op *GenericOperator) AfterGen(ctx *Context, g *Grammar, r *Result) {
-	for _, f := range op.afterGenHandlers {
-		f(ctx, g, r)
+func (op *GenericOperator) AfterGen(g *Grammar, r *Result) {
+	for _, f := range op.AfterGenHandlers {
+		f(g, r)
 	}
 }
 
 func (op *GenericOperator) GetText() string {
-	return op.text
+	return op.Text
 }
 
 var Or = GenericOperator{
-	beforeGenHandlers: []handler{systemBeforeGen},
-	afterGenHandlers:  []handler{systemAfterGen},
-	genHandler:        OrGen,
-	text:              "Or",
+	BeforeGenHandlers: []Handler{systemBeforeGen},
+	AfterGenHandlers:  []Handler{systemAfterGen},
+	GenHandler:        OrGen,
+	Text:              "Or",
 }
 
-func OrGen(ctx *Context, g *Grammar, r *Result) {
+func OrGen(g *Grammar, r *Result) {
 	selected := (*g.Symbols)[rand.Int()%len(*g.Symbols)]
 	r.AddNode(selected)
 	selected.Generate(r)
 }
 
 var Rep = GenericOperator{
-	beforeGenHandlers: []handler{systemBeforeGen},
-	afterGenHandlers:  []handler{systemAfterGen},
-	genHandler:        RepGen,
-	text:              "Repeat",
+	BeforeGenHandlers: []Handler{systemBeforeGen},
+	AfterGenHandlers:  []Handler{systemAfterGen},
+	GenHandler:        RepGen,
+	Text:              "Repeat",
 }
 
-func RepGen(ctx *Context, g *Grammar, r *Result) {
+func RepGen(g *Grammar, r *Result) {
 	times := rand.Int() % 3
 	selected := (*g.Symbols)[0]
 	for i := 0; i < times; i++ {
@@ -83,13 +83,13 @@ func RepGen(ctx *Context, g *Grammar, r *Result) {
 }
 
 var Plus = GenericOperator{
-	beforeGenHandlers: []handler{systemBeforeGen},
-	afterGenHandlers:  []handler{systemAfterGen},
-	genHandler:        PlusGen,
-	text:              "Plus",
+	BeforeGenHandlers: []Handler{systemBeforeGen},
+	AfterGenHandlers:  []Handler{systemAfterGen},
+	GenHandler:        PlusGen,
+	Text:              "Plus",
 }
 
-func PlusGen(ctx *Context, g *Grammar, r *Result) {
+func PlusGen(g *Grammar, r *Result) {
 	times := rand.Int()%3 + 1
 	selected := (*g.Symbols)[0]
 	for i := 0; i < times; i++ {
@@ -99,13 +99,13 @@ func PlusGen(ctx *Context, g *Grammar, r *Result) {
 }
 
 var Ext = GenericOperator{
-	beforeGenHandlers: []handler{systemBeforeGen},
-	afterGenHandlers:  []handler{systemAfterGen},
-	genHandler:        ExtGen,
-	text:              "Exist",
+	BeforeGenHandlers: []Handler{systemBeforeGen},
+	AfterGenHandlers:  []Handler{systemAfterGen},
+	GenHandler:        ExtGen,
+	Text:              "Exist",
 }
 
-func ExtGen(ctx *Context, g *Grammar, r *Result) {
+func ExtGen(g *Grammar, r *Result) {
 	ok := rand.Int() % 2
 	selected := (*g.Symbols)[0]
 	if ok == 1 {
@@ -115,13 +115,13 @@ func ExtGen(ctx *Context, g *Grammar, r *Result) {
 }
 
 var Cat = GenericOperator{
-	beforeGenHandlers: []handler{systemBeforeGen},
-	afterGenHandlers:  []handler{systemAfterGen},
-	genHandler:        CatGen,
-	text:              "Catenate",
+	BeforeGenHandlers: []Handler{systemBeforeGen},
+	AfterGenHandlers:  []Handler{systemAfterGen},
+	GenHandler:        CatGen,
+	Text:              "Catenate",
 }
 
-func CatGen(ctx *Context, g *Grammar, r *Result) {
+func CatGen(g *Grammar, r *Result) {
 	for _, selected := range *g.Symbols {
 		r.AddNode(selected)
 		selected.Generate(r)
@@ -129,15 +129,15 @@ func CatGen(ctx *Context, g *Grammar, r *Result) {
 }
 
 var Regex = GenericOperator{
-	beforeGenHandlers: []handler{systemBeforeGen},
-	afterGenHandlers:  []handler{systemAfterGen},
-	genHandler:        RegexGen,
-	text:              "Regex",
+	BeforeGenHandlers: []Handler{systemBeforeGen},
+	AfterGenHandlers:  []Handler{systemAfterGen},
+	GenHandler:        RegexGen,
+	Text:              "Regex",
 }
 
-func RegexGen(ctx *Context, g *Grammar, r *Result) {
+func RegexGen(g *Grammar, r *Result) {
 	str, err := reggen.Generate(g.GetContent(), 10)
-	glog.Errorf("Generating: %s\n", g.GetContent())
+	//glog.Errorf("Generating: %s\n", g.GetContent())
 	if err != nil {
 		glog.Warningf("can not generate regex: %s", g.GetContent())
 	}
@@ -159,7 +159,7 @@ func RegisterOperator(op Operator) {
 	}
 	systemOperators[op.GetText()] = op
 }
-func ParseGrammarDefinition(file string, startSymbol string) (*Grammar, error) {
+func ParseGrammarDefinition(file string, startSymbol string, conf *Config) (*Grammar, error) {
 	is, err := antlr.NewFileStream(file)
 	if err != nil {
 		return nil, err
@@ -167,7 +167,7 @@ func ParseGrammarDefinition(file string, startSymbol string) (*Grammar, error) {
 	lexer := ebnf.NewEBNFLexer(is)
 	stream := antlr.NewCommonTokenStream(lexer, antlr.TokenDefaultChannel)
 	parser := ebnf.NewEBNFParser(stream)
-	listener := newEbnfListener()
+	listener := newEbnfListener(conf)
 	antlr.ParseTreeWalkerDefault.Walk(listener, parser.Ebnf())
 	g := listener.productions[startSymbol]
 	return g, nil

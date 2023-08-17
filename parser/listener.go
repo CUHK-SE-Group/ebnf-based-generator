@@ -18,9 +18,10 @@ type ebnfListener struct {
 	currentProduction *Grammar
 	productions       map[string]*Grammar
 	forkList          map[*Grammar][]int
+	config            *Config
 }
 
-func newEbnfListener() *ebnfListener {
+func newEbnfListener(conf *Config) *ebnfListener {
 	listener := &ebnfListener{
 		context:           NewContext(),
 		currentSymbolId:   0,
@@ -28,6 +29,7 @@ func newEbnfListener() *ebnfListener {
 		productions:       map[string]*Grammar{},
 		stack:             []*Grammar{},
 		forkList:          map[*Grammar][]int{},
+		config:            conf,
 	}
 	return listener
 }
@@ -76,6 +78,9 @@ func (l *ebnfListener) clear() {
 }
 
 func (l *ebnfListener) getCurrentCtx() *Context {
+	if l.currentProduction.Ctx == nil {
+		return NewContext()
+	}
 	return l.currentProduction.Ctx
 }
 
@@ -89,7 +94,7 @@ func (l *ebnfListener) EnterProduction(ctx *ebnf.ProductionContext) {
 		l.push(p)
 	} else {
 		// a new grammar tree
-		new := NewGrammar(NewContext(), GrammarProduction, systemOperators["Catenate"], name, "")
+		new := NewGrammar(l.getCurrentCtx(), GrammarProduction, systemOperators["Catenate"], name, "", l.config)
 		// save the production and clean the stack for a new round
 		l.currentProduction = new
 		l.clear()
@@ -109,7 +114,7 @@ func (l *ebnfListener) EnterSymbolWithUOp(ctx *ebnf.SymbolWithUOpContext) {
 		op = systemOperators["Plus"]
 	}
 	// generate a new node
-	expr := NewGrammar(l.getCurrentCtx(), GrammarInner, op, l.generateId(), "")
+	expr := NewGrammar(l.getCurrentCtx(), GrammarInner, op, l.generateId(), "", l.config)
 	// add node to its parent
 	l.top().AddSymbol(expr)
 	// traverse children
@@ -130,7 +135,7 @@ func (l *ebnfListener) EnterSymbolWithBOp(ctx *ebnf.SymbolWithBOpContext) {
 		op = systemOperators["Or"]
 	}
 	if l.top().GetOperator() != op {
-		expr := NewGrammar(l.getCurrentCtx(), GrammarInner, op, l.generateId(), "")
+		expr := NewGrammar(l.getCurrentCtx(), GrammarInner, op, l.generateId(), "", l.config)
 		l.top().AddSymbol(expr)
 		l.push(expr)
 		pushed = append(pushed, true)
@@ -149,7 +154,7 @@ func (l *ebnfListener) ExitSymbolWithBOp(ctx *ebnf.SymbolWithBOpContext) {
 
 func (l *ebnfListener) EnterSubSymbol(ctx *ebnf.SubSymbolContext) {
 	fmt.Fprintf(os.Stderr, "SUBSYM the symbol is %s\n", ctx.GetText())
-	expr := NewGrammar(l.getCurrentCtx(), GrammarInner, systemOperators["Catenate"], l.generateId(), "")
+	expr := NewGrammar(l.getCurrentCtx(), GrammarInner, systemOperators["Catenate"], l.generateId(), "", l.config)
 	// add the current node to its parent
 	l.top().AddSymbol(expr)
 	// then it is time to traverse this tree's subtrees.
@@ -163,7 +168,7 @@ func (l *ebnfListener) ExitSubSymbol(ctx *ebnf.SubSymbolContext) {
 func (l *ebnfListener) EnterSymbolWithCat(ctx *ebnf.SymbolWithCatContext) {
 	fmt.Fprintf(os.Stderr, "CAT the symbol is %s\n", ctx.GetText())
 	// new a node that express the current node
-	expr := NewGrammar(l.getCurrentCtx(), GrammarInner, systemOperators["Catenate"], l.generateId(), "")
+	expr := NewGrammar(l.getCurrentCtx(), GrammarInner, systemOperators["Catenate"], l.generateId(), "", l.config)
 	// add current node to its parent
 	l.top().AddSymbol(expr)
 	// traverse its children
@@ -186,7 +191,7 @@ func (l *ebnfListener) EnterSubProduction(ctx *ebnf.SubProductionContext) {
 		}
 		l.top().AddSymbol(new)
 	} else {
-		new := NewGrammar(NewContext(), GrammarProduction, systemOperators["Catenate"], proName, "")
+		new := NewGrammar(l.getCurrentCtx(), GrammarProduction, systemOperators["Catenate"], proName, "", l.config)
 		placeholder := new.ShallowCopy().SetID(l.generateId() + "#" + proName)
 		l.productions[proName] = new
 		id := l.top().AddSymbol(placeholder)
@@ -200,6 +205,6 @@ func (l *ebnfListener) ExitEbnf(ctx *ebnf.EbnfContext) {
 
 func (l *ebnfListener) EnterTerminal(ctx *ebnf.TerminalContext) {
 	fmt.Fprintf(os.Stderr, "TER the symbol is %s\n", ctx.GetText())
-	expr := NewGrammar(l.getCurrentCtx(), GrammarTerminal, systemOperators["Regex"], l.generateId()+"#"+ctx.GetText(), ctx.GetText())
+	expr := NewGrammar(l.getCurrentCtx(), GrammarTerminal, systemOperators["Regex"], l.generateId()+"#"+ctx.GetText(), ctx.GetText(), l.config)
 	l.top().AddSymbol(expr)
 }
