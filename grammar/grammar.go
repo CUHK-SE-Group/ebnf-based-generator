@@ -6,7 +6,6 @@ import (
 	"math/rand"
 	"os"
 	"regexp"
-	"sync"
 
 	"github.com/goccy/go-graphviz"
 	"github.com/goccy/go-graphviz/cgraph"
@@ -14,6 +13,7 @@ import (
 
 const StartSymbol = "<start>"
 
+// A regular expression pattern to identify non-terminal symbols.
 var ReNonterminal = regexp.MustCompile("(<[^<> ]*>)")
 var SimpleNonterminalGrammar = Grammar{G: map[string][]ExpansionTuple{
 	"<start>":       {{name: "<nonterminal>"}},
@@ -24,19 +24,29 @@ var SimpleNonterminalGrammar = Grammar{G: map[string][]ExpansionTuple{
 }}
 
 type Option map[string]interface{}
+
+// ExpansionTuple represents a specific expansion in the grammar;
+// [name]: actual expansion like <num> + <num>;
+// [info]: additional information;
 type ExpansionTuple struct {
 	name string
 	info Option
 }
 
+// Decompose a complex expansion into its individual parts;
+// For example, if the name of an ExpansionTuple is <expr> + <term>, the Expand method would break it down into three ExpansionTuple objects: one for <expr>, one for +, and one for <term>.
 func (e *ExpansionTuple) Expand() []ExpansionTuple {
 	if e.GetName() == "" {
 		return []ExpansionTuple{{"", nil}}
 	}
+
+	// identify and extract all non-terminals
 	re := regexp.MustCompile("<[^<> ]*>|[^<> ]+")
 	results := re.FindAllString(e.GetName(), -1)
+
 	var ExpansionList []ExpansionTuple
 	for _, v := range results {
+		// only set the name field
 		ExpansionList = append(ExpansionList, ExpansionTuple{name: v})
 	}
 	return ExpansionList
@@ -48,40 +58,47 @@ func (e *ExpansionTuple) GetOpt() Option {
 	return e.info
 }
 
-var lock sync.Once
-
 type Grammar struct {
-	G              map[string][]ExpansionTuple
-	symbolCache    map[string]float64
+	// The main grammar map.
+	G map[string][]ExpansionTuple
+	// A cache for symbol costs.
+	symbolCache map[string]float64
+	// A cache for expansion costs.
 	expansionCache map[string]float64
 }
 
+// Returns a random expansion of a given symbol.
 func (grammar *Grammar) ExpandSymbol(symbol string) []ExpansionTuple {
-	expansions, ok := grammar.G[symbol]
+	expansions, ok := grammar.G[symbol] // expansions: a list of ExpansionTuple
 	if !ok {
 		return nil
 	}
 	newChildren := make([][]ExpansionTuple, 0)
 	for _, v := range expansions {
-		chs := v.Expand()
+		// <num> + <num> => [<num>, +, <num>]
+		chs := v.Expand() // break one expansion into seperated ExpansionTuples
 		tmp := make([]ExpansionTuple, 0)
-		for _, ch := range chs {
-			tmp = append(tmp, ch)
-		}
+		tmp = append(tmp, chs...)
 		newChildren = append(newChildren, tmp)
 	}
+	// randomly select one expansion
 	chosenElement := newChildren[rand.Intn(len(newChildren))]
 	return chosenElement
 }
+
+// Returns the expansions associated with a symbol.
 func (grammar *Grammar) GetSymbol(symbol string) []ExpansionTuple {
 	return grammar.G[symbol]
 }
 
+// Extends the grammar with another grammar.
 func (grammar *Grammar) Extend(extension Grammar) {
 	for k, v := range extension.G {
 		grammar.G[k] = v
 	}
 }
+
+// Returns a set of used options.
 func (grammar *Grammar) OptsUsed() Set {
 	usedOpts := make(Set)
 	for _, expansions := range grammar.G {
@@ -93,8 +110,11 @@ func (grammar *Grammar) OptsUsed() Set {
 	}
 	return usedOpts
 }
+
+// Sets options for a specific symbol and expansion;
+// If the expansion already has some options set, the new options are merged with the existing ones;
 func (grammar *Grammar) SetOpts(symbol string, expainsion ExpansionTuple, opt Option) {
-	expansions := grammar.GetSymbol(symbol)
+	expansions := grammar.GetSymbol(symbol) // type: []ExpansionTuple
 	for i, v := range expansions {
 		if v.GetName() != expainsion.GetName() {
 			continue
@@ -114,9 +134,9 @@ func (grammar *Grammar) SetOpts(symbol string, expainsion ExpansionTuple, opt Op
 			grammar.G[symbol][i] = ExpansionTuple{name: expainsion.GetName()}
 		}
 	}
-	return
 }
 
+// Return: definedNonterminals, usedNonterminals, error
 func (grammar *Grammar) defUsedNonterminals(startSymbol string) (Set, Set, error) {
 	definedNonterminals := make(Set)
 	usedNonterminals := make(Set)
@@ -139,6 +159,7 @@ func (grammar *Grammar) defUsedNonterminals(startSymbol string) (Set, Set, error
 	return definedNonterminals, usedNonterminals, nil
 }
 
+// Returns non-terminals that are reachable from a given start symbol.
 func (grammar *Grammar) reachableNonterminals(startSymbol string) map[string]struct{} {
 	reachable := make(map[string]struct{})
 
@@ -158,6 +179,7 @@ func (grammar *Grammar) reachableNonterminals(startSymbol string) map[string]str
 	return reachable
 }
 
+// Returns non-terminals that are not reachable from a given start symbol.
 func (grammar *Grammar) unreachableNonterminals(startSymbol string) map[string]struct{} {
 	reachable := grammar.reachableNonterminals(startSymbol)
 	unreachable := make(map[string]struct{})
@@ -207,7 +229,7 @@ func (grammar *Grammar) IsValidGrammar(startSymbol string, supportedOpts Set) bo
 		fmt.Fprintf(os.Stderr, "%q: unreachable from %s\n", unreachableNonterminal, msgStartSymbol)
 	}
 
-	usedButNotSupportedOpts := NewSet(nil)
+	usedButNotSupportedOpts := NewSet(nil) // Warning: value not used
 	if len(supportedOpts) > 0 {
 		usedOpts := grammar.OptsUsed()
 		usedButNotSupportedOpts = SetDifference(usedOpts, supportedOpts)
@@ -219,6 +241,7 @@ func (grammar *Grammar) IsValidGrammar(startSymbol string, supportedOpts Set) bo
 	return len(usedNonterminals) == len(definedNonterminals) && len(unreachable) == 0
 }
 
+// Visualizes the grammar and saves it as an image.
 func (grammar *Grammar) Visualize(filename string) {
 	g := graphviz.New()
 	graph, _ := g.Graph()
@@ -274,19 +297,34 @@ func (grammar *Grammar) Visualize(filename string) {
 	}
 }
 
+// The next two methods recursively call each other:
+// SymbolCost is the cost of a symbol cost, to calculate, you must know
+// the cost of every expansion of this symbol, so it calls ExpansionCost
+// For ExpansionCost, it sums up the cost of symbols in this expansion
+// Edge/Reduce case:
+// 1. The symbol is a terminal / Expansion contains no non-terminals
+// 2. The symbol has been seen -> infinite recursion -> cost = +Inf
+
+// Computes the cost of expanding a symbol;
+// The method can compute either the minimum or maximum cost based on the max argument.
 func (grammar *Grammar) SymbolCost(symbol ExpansionTuple, seen map[string]struct{}, max bool) float64 {
+	// Cache the cost of a symbol
 	if grammar.symbolCache == nil {
 		grammar.symbolCache = make(map[string]float64)
 	}
+	// Has been cached
 	if cost, ok := grammar.symbolCache[symbol.GetName()]; ok {
 		return cost
 	}
+	// Get all symbols in this ExpansionTuple
 	symbols := symbol.Expand()
 	totalCost := 0.0
 	for _, s := range symbols {
+		// The total cost of a symbol is the sum of the costs of its constituent symbols.
+		// For each symbol, expand using the strategy and calculate ExpansionCost
 		expansions, ok := grammar.G[s.GetName()]
 		if !ok {
-			return 0 // terminal
+			return 0
 		}
 		minCost := math.Inf(1)
 		maxCost := math.Inf(-1)
@@ -305,7 +343,8 @@ func (grammar *Grammar) SymbolCost(symbol ExpansionTuple, seen map[string]struct
 				return maxCost
 			}
 			totalCost += maxCost
-		} else {
+		}
+		if !max {
 			if minCost == math.Inf(1) {
 				return minCost
 			}
@@ -316,6 +355,7 @@ func (grammar *Grammar) SymbolCost(symbol ExpansionTuple, seen map[string]struct
 	return totalCost
 }
 
+// Computes the cost of an expansion.
 func (grammar *Grammar) ExpansionCost(expansion ExpansionTuple, seen map[string]struct{}, max bool) float64 {
 	if grammar.expansionCache == nil {
 		grammar.expansionCache = make(map[string]float64)
@@ -323,6 +363,8 @@ func (grammar *Grammar) ExpansionCost(expansion ExpansionTuple, seen map[string]
 	if cost, ok := grammar.expansionCache[expansion.GetName()]; ok {
 		return cost
 	}
+
+	//  Identifies all non-terminals in the expansion.
 	symbols := NonTerminals(expansion.GetName())
 	if len(symbols) == 0 {
 		return 1 // no symbol

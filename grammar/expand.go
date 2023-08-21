@@ -32,11 +32,12 @@ func RandomExpand(ctx *DerivationContext, tree *DerivationTree) {
 }
 
 // MinimalCostExpand 找出非终端符号中成本最小的一个，并将它扩展为其孩子节点。
+// Expand a non-terminal symbol in the derivation tree with the least cost.
 func MinimalCostExpand(ctx *DerivationContext, tree *DerivationTree) {
 	// 获取叶子节点上的所有的非终端符号
-	nonTerminals := tree.GetNonTerminals()
-	var minCostSymbol *Node // 用来记录成本最小的非终端符号
-	var cost = math.Inf(1)  // 初始成本设为一个较大的数值
+	nonTerminals := tree.GetNonTerminals() // []*Node
+	var minCostSymbol *Node                // 用来记录成本最小的非终端符号
+	var cost = math.Inf(1)                 // 初始成本设为一个较大的数值
 
 	// 遍历所有非终端符号，找出成本最小的那个
 	for _, symbol := range nonTerminals {
@@ -57,11 +58,12 @@ func MinimalCostExpand(ctx *DerivationContext, tree *DerivationTree) {
 		return
 	}
 	log.Default().Println("Choose minCostSymbol: ", minCostSymbol.GetName())
+
 	// 开始扩展最小成本的非终端符号
 	children := minCostSymbol.ExpansionTuple.Expand()
 	log.Default().Printf("Expand children: %+v\n", children)
 	minCostSymbol.Children = make([]*Node, 0)
-	expPair := make([]ExpansionPair, 0)
+	expPair := make([]ExpansionPair, 0) // 用来记录扩展的过程
 	// 遍历所有子节点，如果是非终端节点则进一步扩展，否则直接添加为孩子节点
 	for _, child := range children {
 		if IsNonTerminals(child.GetName()) {
@@ -95,7 +97,7 @@ func MinimalCostExpand(ctx *DerivationContext, tree *DerivationTree) {
 func MaximumCostExpand(ctx *DerivationContext, tree *DerivationTree) {
 	nonTerminals := tree.GetNonTerminals()
 	var maxCostSymbol *Node
-	var cost = math.Inf(-1)
+	var cost = math.Inf(-1) // Initialize to negative infinity for maximum cost search
 
 	for _, symbol := range nonTerminals {
 		children := symbol.ExpansionTuple.Expand()
@@ -112,8 +114,9 @@ func MaximumCostExpand(ctx *DerivationContext, tree *DerivationTree) {
 		ctx.preExpansions = nil
 		return
 	}
-
+	log.Default().Println("Choose maxCostSymbol: ", maxCostSymbol.GetName())
 	children := maxCostSymbol.ExpansionTuple.Expand()
+	log.Default().Printf("Expand children: %+v\n", children)
 	maxCostSymbol.Children = make([]*Node, 0)
 	expPair := make([]ExpansionPair, 0)
 	for _, child := range children {
@@ -122,7 +125,7 @@ func MaximumCostExpand(ctx *DerivationContext, tree *DerivationTree) {
 			var tmpChildren *Node
 			expansions := tree.gram.G[child.GetName()]
 			for _, expansion := range expansions {
-				cost := tree.gram.SymbolCost(expansion, make(map[string]struct{}), true)
+				cost := tree.gram.SymbolCost(expansion, make(map[string]struct{}), true) // Use 'true' for max cost
 				if maxCost < cost {
 					maxCost = cost
 					tmpChildren = &Node{ExpansionTuple: expansion}

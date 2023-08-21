@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestDerivationTree_ExpandNode(t *testing.T) {
+func TestDerivationTree_MinimumCostExpansion(t *testing.T) {
 	tree := NewDerivationTree(URLGrammar, StartSymbol, DFS, MinimalCostExpand)
 	cnt := 0
 	finish := false
@@ -15,13 +15,29 @@ func TestDerivationTree_ExpandNode(t *testing.T) {
 	for !finish {
 		_, finish = tree.ExpandNode(ctx)
 		ctx.handlerIndex = 0 // reset the handler index for test
-		tree.Visualize(fmt.Sprintf("tree%d.png", cnt))
+		tree.Visualize(fmt.Sprintf("min_expand_tree%d.png", cnt))
 		cnt++
 	}
 	_, res := tree.GetLeafNodes()
 	if res != "http://cispa.saarland:80" {
 		t.Errorf("ExpandNode error, actual: %s, want: %s", res, "http://cispa.saarland:80")
 	}
+}
+
+func TestDerivationTree_MaximumCostExpansion(t *testing.T) {
+	tree := NewDerivationTree(URLGrammar, StartSymbol, DFS, MaximumCostExpand)
+	cnt := 0
+	finish := false
+	ctx := NewDerivationContext(context.Background())
+	ctx = tree.Configure(ctx)
+	for !finish {
+		_, finish = tree.ExpandNode(ctx)
+		ctx.handlerIndex = 0
+		tree.Visualize(fmt.Sprintf("max_expand_tree%d.png", cnt))
+		cnt++
+	}
+	_, res := tree.GetLeafNodes()
+	fmt.Println(res)
 }
 
 func TestDerivationTree_RandomExpand(t *testing.T) {
@@ -39,23 +55,6 @@ func TestDerivationTree_RandomExpand(t *testing.T) {
 	}
 
 }
-
-func TestDerivationTree_MaximumCostExpansion(t *testing.T) {
-	tree := NewDerivationTree(URLGrammar, StartSymbol, DFS, MaximumCostExpand)
-	cnt := 0
-	finish := false
-	ctx := NewDerivationContext(context.Background())
-	ctx = tree.Configure(ctx)
-	for !finish {
-		_, finish = tree.ExpandNode(ctx)
-		ctx.handlerIndex = 0
-		tree.Visualize(fmt.Sprintf("tree%d.png", cnt))
-		cnt++
-	}
-	_, res := tree.GetLeafNodes()
-	fmt.Println(res)
-}
-
 func TestDerivationTree_ThreePhaseExpansion(t *testing.T) {
 	tree := NewDerivationTree(URLGrammar, StartSymbol, DFS, ThreePhaseExpansion)
 	cnt := 0

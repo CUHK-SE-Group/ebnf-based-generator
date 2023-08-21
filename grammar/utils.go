@@ -34,6 +34,8 @@ func CRange(start string, end string) []string {
 	}
 	return output
 }
+
+// Find all non-terminal symbols in an expansion, returns as a slice.
 func NonTerminals(expansion string) []string {
 	return ReNonterminal.FindAllString(expansion, -1)
 }

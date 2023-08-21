@@ -157,8 +157,8 @@ func TestExtendGrammar(t *testing.T) {
 	}
 
 	SimpleNonterminalGrammar.Extend(Grammar{G: map[string][]ExpansionTuple{
-		"<identifier>": []ExpansionTuple{{name: "<idchar>"}, {name: "<identifier><idchar>"}},
-		"<idchar>":     []ExpansionTuple{{name: "a"}, {name: "b"}, {name: "c"}, {name: "d"}},
+		"<identifier>": {{name: "<idchar>"}, {name: "<identifier><idchar>"}},
+		"<idchar>":     {{name: "a"}, {name: "b"}, {name: "c"}, {name: "d"}}, // []ExpansionTuple
 	}})
 
 	for _, test := range tests {
@@ -180,6 +180,7 @@ func TestSRange(t *testing.T) {
 		{"abc", []string{"a", "b", "c"}},
 		{"a", []string{"a"}},
 		{"", []string{}},
+		{"!#", []string{"!", "#"}},
 	}
 
 	for _, test := range tests {
@@ -199,6 +200,8 @@ func TestCRange(t *testing.T) {
 		end      string
 		expected []string
 	}{
+		{"1", "3", []string{"1", "2", "3"}},
+		{"z", "a", []string{}},
 		{"a", "c", []string{"a", "b", "c"}},
 		{"a", "a", []string{"a"}},
 		{"a", "b", []string{"a", "b"}},
@@ -246,51 +249,53 @@ func TestGrammar_Visualize(t *testing.T) {
 }
 
 func TestExpansionTuple_Expand(t *testing.T) {
-	e := ExpansionTuple{name: "<digit>*<integer>"}
-	res := e.Expand()
-	if len(res) != 3 {
-		t.Errorf("Expand() = %v; want %v", res, 3)
+	testCases := []struct {
+		name     string
+		input    string
+		expected []string
+	}{
+		{"Basic expansion", "<digit>*<integer>", []string{"<digit>", "*", "<integer>"}},
+		{"Multiple non-terminals", "<digit><integer><term>", []string{"<digit>", "<integer>", "<term>"}},
+		{"Special characters", "<digit>*<integer>+<term>", []string{"<digit>", "*", "<integer>", "+", "<term>"}},
+		{"Empty expansion", "", []string{""}},
+		{"Non-terminals with spaces", "<digit> * <integer> + <term>", []string{"<digit>", "*", "<integer>", "+", "<term>"}},
+		{"Mixed symbols", "<digit>+<integer>-<term>", []string{"<digit>", "+", "<integer>", "-", "<term>"}},
 	}
-	if res[0].GetName() != "<digit>" {
-		t.Errorf("Expand() = %v; want %v", res[0].GetName(), "<digit>")
-	}
-	if res[1].GetName() != "*" {
-		t.Errorf("Expand() = %v; want %v", res[1].GetName(), "*")
-	}
-	if res[2].GetName() != "<integer>" {
-		t.Errorf("Expand() = %v; want %v", res[2].GetName(), "<integer>")
-	}
-}
 
-func TestExpansionTuple_Expand2(t *testing.T) {
-	e := ExpansionTuple{name: ""}
-	res := e.Expand()
-	if len(res) != 1 {
-		t.Errorf("Expand() = %v; want %v", res, 3)
-	}
-	if res[0].GetName() != "" {
-		t.Errorf("Expand() = %v; want %v", res[0].GetName(), "<digit>")
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			e := ExpansionTuple{name: tt.input}
+			res := e.Expand()
+			if len(res) != len(tt.expected) {
+				t.Errorf("Expand() length mismatch. Got = %v; want %v", len(res), len(tt.expected))
+				return
+			}
+			for i, r := range res {
+				if r.GetName() != tt.expected[i] {
+					t.Errorf("Expand() = %v; want %v", r.GetName(), tt.expected[i])
+				}
+			}
+		})
 	}
 }
 
 func TestGrammar_SymbolCost(t *testing.T) {
 	testCases := []struct {
-		name   string
-		symbol string
-		cost   float64
+		name     string
+		symbol   string
+		expected float64
 	}{
-		{"Test case 1", "<digit>", 1},
-		{"Test case 2", "<expr>", 5},
+		{"Basic symbol", "<digit>", 1},
+		{"Complex symbol", "<expr>", 5},
+		{"Non-existent symbol", "<non-existent-symbol>", 0},
 	}
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			m := make(map[string]struct{})
-			// hpc[Note]: this is test is not written by me, but I change the signature of SymbolCost for other tests
-			// As I assume, this tests the SymbolCost of minimum cost
 			cost := ExprGrammar.SymbolCost(ExpansionTuple{name: tt.symbol}, m, false)
-			if cost != tt.cost {
-				t.Errorf("SymbolCost() = %v; want %v", cost, tt.cost)
+			if cost != tt.expected {
+				t.Errorf("SymbolCost() = %v; want %v", cost, tt.expected)
 			}
 		})
 	}
