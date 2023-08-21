@@ -313,9 +313,11 @@ func (grammar *Grammar) SymbolCost(symbol ExpansionTuple, seen map[string]struct
 		grammar.symbolCache = make(map[string]float64)
 	}
 	// Has been cached
-	if cost, ok := grammar.symbolCache[symbol.GetName()]; ok {
-		return cost
-	}
+
+	// if cost, ok := grammar.symbolCache[symbol.GetName()]; ok {
+	// 	return cost
+	// }
+
 	// Get all symbols in this ExpansionTuple
 	symbols := symbol.Expand()
 	totalCost := 0.0
@@ -360,9 +362,9 @@ func (grammar *Grammar) ExpansionCost(expansion ExpansionTuple, seen map[string]
 	if grammar.expansionCache == nil {
 		grammar.expansionCache = make(map[string]float64)
 	}
-	if cost, ok := grammar.expansionCache[expansion.GetName()]; ok {
-		return cost
-	}
+	// if cost, ok := grammar.expansionCache[expansion.GetName()]; ok {
+	// 	return cost
+	// }
 
 	//  Identifies all non-terminals in the expansion.
 	symbols := NonTerminals(expansion.GetName())

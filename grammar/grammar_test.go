@@ -279,7 +279,7 @@ func TestExpansionTuple_Expand(t *testing.T) {
 	}
 }
 
-func TestGrammar_SymbolCost(t *testing.T) {
+func TestGrammar_SymbolCost_Expr(t *testing.T) {
 	testCases := []struct {
 		name     string
 		symbol   string
@@ -296,6 +296,37 @@ func TestGrammar_SymbolCost(t *testing.T) {
 			cost := ExprGrammar.SymbolCost(ExpansionTuple{name: tt.symbol}, m, false)
 			if cost != tt.expected {
 				t.Errorf("SymbolCost() = %v; want %v", cost, tt.expected)
+			}
+		})
+	}
+}
+
+func TestGrammar_SymbolCost_URL_Min(t *testing.T) {
+	testCases := []struct {
+		name     string
+		symbol   string
+		expected float64
+	}{
+		{"Digit symbol", "<digit>", 1},
+		{"Natural number", "<nat>", 1},
+		{"Port number", "<port>", 1},
+		{"Host name", "<host>", 1},
+		{"Scheme", "<scheme>", 1},
+		{"User info", "<userinfo>", 1},
+		{"ID", "<id>", 1},
+		{"Parameter", "<param>", 2},
+		{"Parameters", "<params>", 2},
+		{"Query", "<query>", 1},
+		{"Path", "<path>", 1},
+		{"Authority with host only", "<authority>", 1},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			m := make(map[string]struct{})
+			cost := URLGrammar.SymbolCost(ExpansionTuple{name: tt.symbol}, m, false)
+			if cost != tt.expected {
+				t.Errorf("SymbolCost() for %s = %v; want %v", tt.symbol, cost, tt.expected)
 			}
 		})
 	}
