@@ -3,6 +3,7 @@ package grammar
 import (
 	"context"
 	"fmt"
+
 	"github.com/goccy/go-graphviz"
 	"github.com/goccy/go-graphviz/cgraph"
 )
@@ -11,13 +12,15 @@ type Handler func(ctx *DerivationContext, tree *DerivationTree)
 
 type DerivationContext struct {
 	context.Context
-	coverage      map[string]int
-	handlers      []Handler
+	// The keys of this map are strings in the format "symbol->expansion", representing a specific grammar rule, and the values are integers representing the number of times that rule has been used.
+	coverage      map[string]int // track how many times each grammar rule (from symbol to expansion) has been used during the derivation process.
+	handlers      []Handler      // handlers to be executed.
 	handlerIndex  int
-	preExpansions []ExpansionPair
+	preExpansions []ExpansionPair // previous expansions records. May be used for coverage analysis
 	finish        bool
 }
 
+// Returns the next handler to be executed in the given context
 func (ctx *DerivationContext) Next() Handler {
 	if ctx.handlerIndex <= len(ctx.handlers) {
 		ctx.handlerIndex++
@@ -28,8 +31,8 @@ func (ctx *DerivationContext) Next() Handler {
 type DerivationTree struct {
 	gram        Grammar
 	startSymbol string
-	traversal   TraversalAlgo
-	expandAlgo  Handler
+	traversal   TraversalAlgo // The algorithm used for tree traversal.
+	expandAlgo  Handler       // The algorithm used for expanding nodes.
 	root        *Node
 
 	handlers       map[string][]Handler
@@ -44,6 +47,8 @@ type ExpansionPair struct {
 	To   ExpansionTuple
 }
 
+// Initializes the tree based on the grammar:
+// Root with start symbol as its name, and its children are the expansions of the start symbol.
 func (dt *DerivationTree) Construct() {
 	for key, value := range dt.gram.G {
 		if key == dt.startSymbol {
@@ -52,18 +57,19 @@ func (dt *DerivationTree) Construct() {
 			for _, v := range value {
 				dt.root.Children = append(dt.root.Children, &Node{ExpansionTuple: v})
 			}
+			break
 		}
 	}
 }
 
-// GetNonTerminals 获取叶子节点上的所有非终端符号
+// Returns all non-terminal nodes from leaves.
 func (dt *DerivationTree) GetNonTerminals() []*Node {
 	nonTermi := make([]*Node, 0)
 	dt.traversal(dt.root, func(node *Node) {
 		if node == nil {
 			return
 		}
-		// 如果当前节点有孩子节点，则不是叶子结点
+		// has children -> not leaf nodes
 		if node.Children != nil {
 			return
 		}
@@ -73,6 +79,8 @@ func (dt *DerivationTree) GetNonTerminals() []*Node {
 	})
 	return nonTermi
 }
+
+// Returns a node with a specific symbol.
 func (dt *DerivationTree) GetNode(symbol string) *Node {
 	var n *Node
 	dt.traversal(dt.root, func(node *Node) {
@@ -82,9 +90,14 @@ func (dt *DerivationTree) GetNode(symbol string) *Node {
 	})
 	return n
 }
+
+// Returns the root node of the DerivationTree
 func (dt *DerivationTree) GetRoot() *Node {
 	return dt.root
 }
+
+// Registers a handler for a specific symbol.
+// Simply append the handler to the list of handlers.
 func (dt *DerivationTree) RegisterHandler(name string, f Handler) {
 	if _, ok := dt.handlers[name]; !ok {
 		dt.handlers[name] = make([]Handler, 0)
@@ -92,15 +105,18 @@ func (dt *DerivationTree) RegisterHandler(name string, f Handler) {
 	dt.handlers[name] = append(dt.handlers[name], f)
 }
 
+// Registers a system-level handler
 func (dt *DerivationTree) registerSystemHandler(f Handler) {
 	dt.systemHandlers = append(dt.systemHandlers, f)
 }
 
+// Expands a node using the next registered handlers.
 func (dt *DerivationTree) ExpandNode(ctx *DerivationContext) (*DerivationContext, bool) {
 	ctx.Next()(ctx, dt)
 	return ctx, ctx.finish
 }
 
+// Returns all leaf nodes and their names concatenated.
 func (dt *DerivationTree) GetLeafNodes() ([]*Node, string) {
 	arr := make([]*Node, 0)
 	// force to use DFS
@@ -116,6 +132,8 @@ func (dt *DerivationTree) GetLeafNodes() ([]*Node, string) {
 	})
 	return arr, res
 }
+
+// Helper method for visualization. Adds a node to the graph.
 func (dt *DerivationTree) addNode(graph *cgraph.Graph, parent *cgraph.Node, node *Node) {
 	if node == nil {
 		return
@@ -136,6 +154,7 @@ func (dt *DerivationTree) addNode(graph *cgraph.Graph, parent *cgraph.Node, node
 	}
 }
 
+// Visualizes the tree and saves it as an image, given the filename.
 func (dt *DerivationTree) Visualize(filename string) {
 	g := graphviz.New()
 	graph, _ := g.Graph()
@@ -149,6 +168,7 @@ func (dt *DerivationTree) Visualize(filename string) {
 	}
 }
 
+// Resets the coverage map in the context.
 func (dt *DerivationTree) ResetCoverage(ctx *DerivationContext) {
 	ctx.coverage = make(map[string]int)
 	for symbol, expansions := range dt.gram.G {
@@ -158,16 +178,19 @@ func (dt *DerivationTree) ResetCoverage(ctx *DerivationContext) {
 	}
 }
 
+// Configures the context, using default & system handlers.
 func (dt *DerivationTree) Configure(ctx *DerivationContext) *DerivationContext {
 	dt.ResetCoverage(ctx)
+	// Add default handlers
 	if hds, ok := dt.handlers["default"]; ok {
-		for _, hd := range hds {
-			ctx.handlers = append(ctx.handlers, hd)
-		}
+		ctx.handlers = append(ctx.handlers, hds...)
 	}
+	// Add system handlers
 	ctx.handlers = append(ctx.handlers, dt.systemHandlers...)
 	return ctx
 }
+
+// for a context, returns the coverage map and the coverage value calculated (0.0-1.0)
 func (ctx *DerivationContext) GetCoverage() (map[string]int, float64) {
 	covered := 0.0
 	for _, cnt := range ctx.coverage {
@@ -178,6 +201,7 @@ func (ctx *DerivationContext) GetCoverage() (map[string]int, float64) {
 	return ctx.coverage, covered / float64(len(ctx.coverage))
 }
 
+// Creates a new DerivationTree based on the provided grammar, start symbol, traversal algorithm, and expansion algorithm.
 func NewDerivationTree(gram Grammar, startSymbol string, traversal TraversalAlgo, expandAlgo ExpansionAlgo) *DerivationTree {
 	dt := &DerivationTree{
 		gram:        gram,
@@ -194,6 +218,7 @@ func NewDerivationTree(gram Grammar, startSymbol string, traversal TraversalAlgo
 	return dt
 }
 
+// Creates a new DerivationContext with empty coverage based on the provided context.
 func NewDerivationContext(ctx context.Context) *DerivationContext {
 	return &DerivationContext{
 		Context:  ctx,
