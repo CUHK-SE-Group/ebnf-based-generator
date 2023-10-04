@@ -167,7 +167,7 @@ func ParseGrammarDefinition(file string, startSymbol string, conf *Config) (*Gra
 	lexer := ebnf.NewEBNFLexer(is)
 	stream := antlr.NewCommonTokenStream(lexer, antlr.TokenDefaultChannel)
 	parser := ebnf.NewEBNFParser(stream)
-	listener := newEbnfListener(conf)
+	listener := newEbnfListener()
 	antlr.ParseTreeWalkerDefault.Walk(listener, parser.Ebnf())
 	g := listener.productions[startSymbol]
 	return g, nil

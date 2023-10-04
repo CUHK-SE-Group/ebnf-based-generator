@@ -1,54 +1,85 @@
 package parser
 
 import (
+	"context"
 	"fmt"
-	"os"
-	"strconv"
-
 	"github.com/CUHK-SE-Group/ebnf-based-generator/parser/ebnf"
-
-	"github.com/golang/glog"
+	"log/slog"
+	"os"
+	"runtime"
+	"strconv"
+	"strings"
 )
+
+/*
+node搜索流程：
+1. 能控制生成的只有 OR，REP。因此生成限制仅通过指定 某个Production下的操作是什么
+
+e.g., 我要限制 SKIP 语句下的 expression 的 OR 生成是随机的。或 我要指定 SKIP 语句下的 REP 次数小于 3
+
+2. 定位节点
+
+先将生成逻辑挂载到对应的node类型中，例如是针对OR的。并且声明他的作用域是SKIP。
+则在真正生成时，对这类节点的生成逻辑进行匹配，如果这个类型匹配到是SKIP，则应用这类生成逻辑。（可以保存生成路径，则一旦检测到生成路径里有对应的作用域，则应用该逻辑）
+
+3. 生成变量的约束
+
+同样，约束SKIP下的变量生成是从前面生成的某语句里sample，类似于上一步
+*/
+
+type CallerInfoHandler struct {
+	innerHandler slog.Handler
+}
+
+func (h *CallerInfoHandler) Handle(ctx context.Context, r slog.Record) error {
+	pc, file, _, ok := runtime.Caller(3) // Adjust the skip value as needed
+	if ok {
+		shortFile := file[strings.LastIndex(file, "/")+1:]
+		funcName := runtime.FuncForPC(pc).Name()
+		shortFuncName := funcName[strings.LastIndex(funcName, ".")+1:]
+		r.Message = fmt.Sprintf("%s:%s: %s", shortFile, shortFuncName, r.Message)
+	}
+	return h.innerHandler.Handle(ctx, r)
+}
+
+func (h *CallerInfoHandler) Enabled(ctx context.Context, level slog.Level) bool {
+	return h.innerHandler.Enabled(ctx, level)
+}
+
+func (h *CallerInfoHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	return &CallerInfoHandler{innerHandler: h.innerHandler.WithAttrs(attrs)}
+}
+
+func (h *CallerInfoHandler) WithGroup(name string) slog.Handler {
+	return &CallerInfoHandler{innerHandler: h.innerHandler.WithGroup(name)}
+}
+
+func NewCallerInfoHandler(innerHandler slog.Handler) *CallerInfoHandler {
+	return &CallerInfoHandler{innerHandler: innerHandler}
+}
 
 type ebnfListener struct {
 	*ebnf.BaseEBNFParserListener
-	context           *Context
 	stack             []*Grammar
 	currentSymbolId   int
 	currentProduction *Grammar
 	productions       map[string]*Grammar
-	forkList          map[*Grammar][]int
-	config            *Config
+	logger            *slog.Logger
 }
 
-func newEbnfListener(conf *Config) *ebnfListener {
+func newEbnfListener() *ebnfListener {
+	textHandler := slog.NewTextHandler(os.Stdout, nil)
+	callerInfoHandler := NewCallerInfoHandler(textHandler)
+	logger := slog.New(callerInfoHandler)
+
 	listener := &ebnfListener{
-		context:           NewContext(),
 		currentSymbolId:   0,
 		currentProduction: &Grammar{},
 		productions:       map[string]*Grammar{},
 		stack:             []*Grammar{},
-		forkList:          map[*Grammar][]int{},
-		config:            conf,
+		logger:            logger,
 	}
 	return listener
-}
-
-func (l *ebnfListener) addToForkList(g *Grammar, id int) {
-	l.forkList[g] = append(l.forkList[g], id)
-}
-
-func (l *ebnfListener) forkAll() {
-	for g, idxList := range l.forkList {
-		for _, idx := range idxList {
-			// id := g.GetSymbol(idx).GetID()
-			fork, err := g.GetSymbol(idx).ForkContext("")
-			if err != nil {
-				glog.Fatalf("non-production grammar in forkList: %s", g.GetID())
-			}
-			g.SetSymbol(idx, fork)
-		}
-	}
 }
 
 func (l *ebnfListener) generateId() string {
@@ -77,134 +108,122 @@ func (l *ebnfListener) clear() {
 	l.stack = []*Grammar{}
 }
 
-func (l *ebnfListener) getCurrentCtx() *Context {
-	if l.currentProduction.Ctx == nil {
-		return NewContext()
-	}
-	return l.currentProduction.Ctx
-}
+func (l *ebnfListener) EnterProduction(c *ebnf.ProductionContext) {
+	l.logger.Info(c.GetText())
+	name := c.ID().GetText()
 
-func (l *ebnfListener) EnterProduction(ctx *ebnf.ProductionContext) {
-	l.currentSymbolId = 0
-	name := ctx.ID().GetText()
 	if p, ok := l.productions[name]; ok {
-		// if the production has been parsed, then ...
 		l.currentProduction = p
 		l.clear()
 		l.push(p)
 	} else {
-		// a new grammar tree
-		new := NewGrammar(l.getCurrentCtx(), GrammarProduction, systemOperators["Catenate"], name, "", l.config)
-		// save the production and clean the stack for a new round
-		l.currentProduction = new
+		g := NewGrammar(NewContext(), GrammarProduction, name, c.GetText(), nil)
+		l.currentProduction = g
 		l.clear()
-		l.save(new)
-		l.push(new)
+		l.save(g)
+		l.push(g)
 	}
 }
-
-func (l *ebnfListener) EnterSymbolWithUOp(ctx *ebnf.SymbolWithUOpContext) {
-	var op Operator
-	switch ctx.UnaryOp().GetStart().GetTokenType() {
-	case ebnf.EBNFLexerREP:
-		op = systemOperators["Repeat"]
-	case ebnf.EBNFLexerEXT:
-		op = systemOperators["Exist"]
-	case ebnf.EBNFLexerPLUS:
-		op = systemOperators["Plus"]
-	}
-	// generate a new node
-	expr := NewGrammar(l.getCurrentCtx(), GrammarInner, op, l.generateId(), "", l.config)
-	// add node to its parent
-	l.top().AddSymbol(expr)
-	// traverse children
-	l.push(expr)
-	fmt.Fprintf(os.Stderr, "UOP the symbol is %s, push %s\n", ctx.GetText(), expr.ID)
-}
-
-func (l *ebnfListener) ExitSymbolWithUOp(ctx *ebnf.SymbolWithUOpContext) {
+func (l *ebnfListener) ExitProduction(c *ebnf.ProductionContext) {
 	l.pop()
 }
 
-var pushed []bool = make([]bool, 0)
-
-func (l *ebnfListener) EnterSymbolWithBOp(ctx *ebnf.SymbolWithBOpContext) {
-	var op Operator
-	switch ctx.BinaryOp().GetStart().GetTokenType() {
-	case ebnf.EBNFLexerOR:
-		op = systemOperators["Or"]
-	}
-	if l.top().GetOperator() != op {
-		expr := NewGrammar(l.getCurrentCtx(), GrammarInner, op, l.generateId(), "", l.config)
-		l.top().AddSymbol(expr)
-		l.push(expr)
-		pushed = append(pushed, true)
-		fmt.Fprintf(os.Stderr, "BOP the symbol is %s, left is %s, right is %s, push %s\n", ctx.GetText(), ctx.Expr(0).GetText(), ctx.Expr(1).GetText(), expr.ID)
-	} else {
-		pushed = append(pushed, false)
-	}
+func (l *ebnfListener) EnterExpr(c *ebnf.ExprContext) {
+	// expr 这层暂时不管，因为只有单个选择。但为了保持尊重，新建一个symbol
+	g := NewGrammar(NewContext(), GrammarExpr, l.generateId(), c.GetText(), nil)
+	l.top().AddSymbol(g)
+	l.push(g)
 }
-
-func (l *ebnfListener) ExitSymbolWithBOp(ctx *ebnf.SymbolWithBOpContext) {
-	if pushed[len(pushed)-1] == true {
-		l.pop()
-	}
-	pushed = pushed[:len(pushed)-1]
-}
-
-func (l *ebnfListener) EnterSubSymbol(ctx *ebnf.SubSymbolContext) {
-	fmt.Fprintf(os.Stderr, "SUBSYM the symbol is %s\n", ctx.GetText())
-	expr := NewGrammar(l.getCurrentCtx(), GrammarInner, systemOperators["Catenate"], l.generateId(), "", l.config)
-	// add the current node to its parent
-	l.top().AddSymbol(expr)
-	// then it is time to traverse this tree's subtrees.
-	l.push(expr)
-}
-
-func (l *ebnfListener) ExitSubSymbol(ctx *ebnf.SubSymbolContext) {
+func (l *ebnfListener) ExitExpr(c *ebnf.ExprContext) {
 	l.pop()
 }
 
-func (l *ebnfListener) EnterSymbolWithCat(ctx *ebnf.SymbolWithCatContext) {
-	fmt.Fprintf(os.Stderr, "CAT the symbol is %s\n", ctx.GetText())
-	// new a node that express the current node
-	expr := NewGrammar(l.getCurrentCtx(), GrammarInner, systemOperators["Catenate"], l.generateId(), "", l.config)
-	// add current node to its parent
-	l.top().AddSymbol(expr)
-	// traverse its children
-	l.push(expr)
+func (l *ebnfListener) EnterTerm(c *ebnf.TermContext) {
+	l.logger.Info(c.GetText())
+	g := NewGrammar(NewContext(), GrammarTerm, l.generateId(), c.GetText(), nil)
+	l.top().AddSymbol(g)
+	l.push(g)
 }
 
-func (l *ebnfListener) ExitSymbolWithCat(ctx *ebnf.SymbolWithCatContext) {
+func (l *ebnfListener) ExitTerm(c *ebnf.TermContext) {
 	l.pop()
 }
 
-func (l *ebnfListener) EnterSubProduction(ctx *ebnf.SubProductionContext) {
-	proName := ctx.ID().GetText()
-	fmt.Fprintf(os.Stderr, "SUBP the symbol is %s\n", proName)
-	if g, ok := l.productions[proName]; ok {
-		new, err := g.ForkContext(l.generateId() + "#" + proName)
-		if err != nil {
-			glog.Errorf("failed to bind proudction to existing definition for %s.", g.ID)
-			glog.Errorf("some non-production grammars may be present in the symbol table.")
-			glog.Fatal("Terminating...")
-		}
-		l.top().AddSymbol(new)
-	} else {
-		new := NewGrammar(l.getCurrentCtx(), GrammarProduction, systemOperators["Catenate"], proName, "", l.config)
-		placeholder := new.ShallowCopy().SetID(l.generateId() + "#" + proName)
-		l.productions[proName] = new
-		id := l.top().AddSymbol(placeholder)
-		l.addToForkList(l.top(), id)
-	}
+// EnterID one of factor branch
+func (l *ebnfListener) EnterID(c *ebnf.IDContext) {
+	l.logger.Info(c.GetText())
+	g := NewGrammar(NewContext(), GrammarID, l.generateId(), c.GetText(), nil)
+	l.top().AddSymbol(g)
+	l.push(g)
+}
+func (l *ebnfListener) ExitID(c *ebnf.IDContext) {
+	l.pop()
 }
 
-func (l *ebnfListener) ExitEbnf(ctx *ebnf.EbnfContext) {
-	l.forkAll()
+// EnterSTR one of factor branch
+func (l *ebnfListener) EnterSTR(c *ebnf.STRContext) {
+	l.logger.Info(c.GetText())
+	g := NewGrammar(NewContext(), GrammarTerminal, l.generateId(), c.GetText(), nil)
+	l.top().AddSymbol(g)
+	l.push(g)
+}
+func (l *ebnfListener) ExitSTR(c *ebnf.STRContext) {
+	l.pop()
 }
 
-func (l *ebnfListener) EnterTerminal(ctx *ebnf.TerminalContext) {
-	fmt.Fprintf(os.Stderr, "TER the symbol is %s\n", ctx.GetText())
-	expr := NewGrammar(l.getCurrentCtx(), GrammarTerminal, systemOperators["Regex"], l.generateId()+"#"+ctx.GetText(), ctx.GetText(), l.config)
-	l.top().AddSymbol(expr)
+// EnterQUOTE one of factor branch
+func (l *ebnfListener) EnterQUOTE(c *ebnf.QUOTEContext) {
+	l.logger.Info(c.GetText())
+	g := NewGrammar(NewContext(), GrammarTerminal, l.generateId(), c.GetText(), nil)
+	l.top().AddSymbol(g)
+	l.push(g)
+}
+func (l *ebnfListener) ExitQUOTE(c *ebnf.QUOTEContext) {
+	l.pop()
+}
+
+// one of factor branch
+func (l *ebnfListener) EnterPAREN(c *ebnf.PARENContext) {
+	l.logger.Info(c.GetText())
+	g := NewGrammar(NewContext(), GrammarPAREN, l.generateId(), c.GetText(), nil)
+	l.top().AddSymbol(g)
+	l.push(g)
+}
+func (l *ebnfListener) ExitPAREN(c *ebnf.PARENContext) {
+	l.pop()
+}
+
+// one of factor branch
+func (l *ebnfListener) EnterBRACKET(c *ebnf.BRACKETContext) {
+	l.logger.Info(c.GetText())
+	g := NewGrammar(NewContext(), GrammarBRACKET, l.generateId(), c.GetText(), nil)
+	l.top().AddSymbol(g)
+	l.push(g)
+}
+func (l *ebnfListener) ExitBRACKET(c *ebnf.BRACKETContext) {
+	l.pop()
+}
+
+// one of factor branch
+func (l *ebnfListener) EnterBRACE(c *ebnf.BRACEContext) {
+	l.logger.Info(c.GetText())
+	g := NewGrammar(NewContext(), GrammarBRACE, l.generateId(), c.GetText(), nil)
+	l.top().AddSymbol(g)
+	l.push(g)
+}
+func (l *ebnfListener) ExitBRACE(c *ebnf.BRACEContext) {
+	l.pop()
+}
+
+// one of factor branch
+func (l *ebnfListener) EnterRECU(c *ebnf.RECUContext) {
+	l.logger.Info(c.GetText())
+	g := NewGrammar(NewContext(), GrammarRECU, l.generateId(), c.GetText(), nil)
+	l.top().AddSymbol(g)
+	l.push(g)
+}
+
+// one of factor branch
+func (l *ebnfListener) ExitRECU(c *ebnf.RECUContext) {
+	l.pop()
 }

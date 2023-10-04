@@ -11,10 +11,18 @@ import (
 
 var visNode map[string]*cgraph.Node
 
+// 带yes标记的symbol要指定生成策略
 const (
-	GrammarProduction = 1
-	GrammarTerminal   = 2
-	GrammarInner      = 3
+	GrammarProduction = iota
+	GrammarExpr       // yes
+	GrammarTerm
+	GrammarFactor
+	GrammarPAREN
+	GrammarBRACKET // yes
+	GrammarBRACE   // yes
+	GrammarRECU    // yes
+	GrammarID
+	GrammarTerminal
 )
 
 type Result struct {
@@ -53,7 +61,7 @@ func (r *Result) Visualize(filename string) {
 	var prev *cgraph.Node = nil
 	var outputIdx int = 0
 	for idx, n := range r.GetPath() {
-		current, err := graph.CreateNode(n.GetID())
+		current, err := graph.CreateNode(n.GetContent())
 		if err != nil {
 			glog.Fatalf("something unexpected when noding %s: %v", n.GetID(), err)
 		}
@@ -124,15 +132,15 @@ type Grammar struct {
 	ID      string
 	Type    int
 	Symbols *[]*Grammar
+
 	Content string
 	Root    *Grammar
 	Ctx     *Context
 	Config  *Config
 }
 
-func NewGrammar(ctx *Context, t int, op Operator, id string, content string, conf *Config) *Grammar {
-	ctx.Operators[id] = op
-	new := &Grammar{
+func NewGrammar(ctx *Context, t int, id string, content string, conf *Config) *Grammar {
+	newG := &Grammar{
 		ID:      id,
 		Type:    t,
 		Symbols: &[]*Grammar{},
@@ -140,7 +148,7 @@ func NewGrammar(ctx *Context, t int, op Operator, id string, content string, con
 		Ctx:     ctx,
 		Config:  conf,
 	}
-	return new.SetRoot(new)
+	return newG.SetRoot(newG)
 }
 
 func (g *Grammar) SetID(id string) *Grammar {
@@ -244,7 +252,7 @@ func (g *Grammar) Visualize(filename string, expandSub bool) {
 	gh := graphviz.New()
 	graph, _ := gh.Graph()
 	visNode = make(map[string]*cgraph.Node)
-	g.addNodeToGraph(graph, nil, g.GetOperator().GetText(), expandSub)
+	g.addNodeToGraph(graph, nil, g.GetContent(), expandSub)
 
 	err := gh.RenderFilename(graph, graphviz.PNG, filename)
 	if err != nil {
@@ -264,7 +272,7 @@ func (g *Grammar) addNodeToGraph(graph *cgraph.Graph, parent *cgraph.Node, label
 		visited = true
 		return
 	} else {
-		node, err := graph.CreateNode(g.ID)
+		node, err := graph.CreateNode(g.GetID())
 		if err != nil {
 			panic(err)
 		}
@@ -283,7 +291,7 @@ func (g *Grammar) addNodeToGraph(graph *cgraph.Graph, parent *cgraph.Node, label
 		return
 	}
 	for _, child := range *g.Symbols {
-		child.addNodeToGraph(graph, n, g.GetOperator().GetText(), expandSub)
+		child.addNodeToGraph(graph, n, g.GetID(), expandSub)
 	}
 }
 
