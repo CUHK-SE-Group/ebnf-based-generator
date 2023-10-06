@@ -12,7 +12,7 @@ type GrammarType int
 
 // 带yes标记的symbol要指定生成策略
 const (
-	GrammarProduction GrammarType = iota
+	GrammarProduction GrammarType = 1 << iota
 	GrammarExpr                   // yes
 	GrammarTerm
 	GrammarPAREN
@@ -66,6 +66,10 @@ func (g *Grammar) AddSymbol(new *Grammar) int {
 	}
 	*g.symbols = append(*g.symbols, new)
 	return len(*g.symbols) - 1
+}
+
+func (g *Grammar) GetSymbols() *[]*Grammar {
+	return g.symbols
 }
 
 func (g *Grammar) GetSymbol(idx int) *Grammar {

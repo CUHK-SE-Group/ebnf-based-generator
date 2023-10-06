@@ -13,7 +13,8 @@ import (
 /*
 node搜索流程：
 1. 能控制生成的只有 OR，REP。因此生成限制仅通过指定 某个Production下的操作是什么
-
+xpath ..    node1.. node2
+[SKIP, expression] func () { random ... }
 e.g., 我要限制 SKIP 语句下的 expression 的 OR 生成是随机的。或 我要指定 SKIP 语句下的 REP 次数小于 3
 
 2. 定位节点

@@ -13,14 +13,19 @@ type ResponseCallBack func(*Result)
 type Result struct {
 	path   []*Grammar
 	output []string
+	ctx    *Context
 }
 
-func NewResult() *Result {
+func NewResult(ctx *Context) *Result {
 	return &Result{
 		path: []*Grammar{},
+		ctx:  ctx,
 	}
 }
 
+func (r *Result) GetCtx() *Context {
+	return r.ctx
+}
 func (r *Result) AddNode(n *Grammar) *Result {
 	r.path = append(r.path, n)
 	return r

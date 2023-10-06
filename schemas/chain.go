@@ -1,16 +1,19 @@
 package schemas
 
+import (
+	"fmt"
+	"log/slog"
+)
+
 type Chain struct {
-	ServiceType string
-	Name        string
-	Handlers    []Handler
+	Name     string
+	Handlers []Handler
 }
 
 func (c *Chain) Clone() Chain {
 	var clone = Chain{
-		ServiceType: c.ServiceType,
-		Name:        c.Name,
-		Handlers:    make([]Handler, len(c.Handlers)),
+		Name:     c.Name,
+		Handlers: make([]Handler, len(c.Handlers)),
 	}
 	copy(clone.Handlers, c.Handlers)
 	return clone
@@ -22,13 +25,33 @@ func (c *Chain) AddHandler(h Handler) {
 }
 
 // Next is for to handle next handler in the chain
-func (c *Chain) Next(i *Context, f ResponseCallBack) {
-	index := i.HandlerIndex
-	if index >= len(c.Handlers) {
-		r := NewResult()
-		f(r)
-		return
+func (c *Chain) Next(ctx *Context, f ResponseCallBack) {
+	for index := ctx.HandlerIndex; index < len(c.Handlers); index++ {
+		ctx.HandlerIndex++
+		if ctx.SymbolStack.Top() == nil {
+			slog.Error("Warning: Symbol queue should not be empty")
+			break
+		}
+		// 如果类型符合
+		fmt.Println(ctx.SymbolStack.Top().gtype)
+		fmt.Println(c.Handlers[index].Type())
+		if ctx.SymbolStack.Top().gtype&c.Handlers[index].Type() != 0 {
+			c.Handlers[index].Handle(c, ctx, f)
+			return
+		}
 	}
-	i.HandlerIndex++
-	c.Handlers[index].Handle(c, i, f)
+	// 最后一个handler已执行结束，则回调
+	r := NewResult(ctx)
+	f(r)
+}
+
+func CreateChain(chainName string, handlers ...Handler) (*Chain, error) {
+	c := &Chain{
+		Name: chainName,
+	}
+	for _, h := range handlers {
+		c.AddHandler(h)
+	}
+
+	return c, nil
 }
