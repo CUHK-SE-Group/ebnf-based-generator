@@ -1,14 +1,13 @@
 package parser
 
 import (
-	"context"
-	"fmt"
+	"github.com/CUHK-SE-Group/ebnf-based-generator/log"
 	"github.com/CUHK-SE-Group/ebnf-based-generator/parser/ebnf"
+	"github.com/CUHK-SE-Group/ebnf-based-generator/schemas"
+	"github.com/antlr4-go/antlr/v4"
 	"log/slog"
 	"os"
-	"runtime"
 	"strconv"
-	"strings"
 )
 
 /*
@@ -27,68 +26,37 @@ e.g., 我要限制 SKIP 语句下的 expression 的 OR 生成是随机的。或 
 同样，约束SKIP下的变量生成是从前面生成的某语句里sample，类似于上一步
 */
 
-type CallerInfoHandler struct {
-	innerHandler slog.Handler
-}
-
-func (h *CallerInfoHandler) Handle(ctx context.Context, r slog.Record) error {
-	pc, file, _, ok := runtime.Caller(3) // Adjust the skip value as needed
-	if ok {
-		shortFile := file[strings.LastIndex(file, "/")+1:]
-		funcName := runtime.FuncForPC(pc).Name()
-		shortFuncName := funcName[strings.LastIndex(funcName, ".")+1:]
-		r.Message = fmt.Sprintf("%s:%s: %s", shortFile, shortFuncName, r.Message)
-	}
-	return h.innerHandler.Handle(ctx, r)
-}
-
-func (h *CallerInfoHandler) Enabled(ctx context.Context, level slog.Level) bool {
-	return h.innerHandler.Enabled(ctx, level)
-}
-
-func (h *CallerInfoHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
-	return &CallerInfoHandler{innerHandler: h.innerHandler.WithAttrs(attrs)}
-}
-
-func (h *CallerInfoHandler) WithGroup(name string) slog.Handler {
-	return &CallerInfoHandler{innerHandler: h.innerHandler.WithGroup(name)}
-}
-
-func NewCallerInfoHandler(innerHandler slog.Handler) *CallerInfoHandler {
-	return &CallerInfoHandler{innerHandler: innerHandler}
-}
-
 type ebnfListener struct {
 	*ebnf.BaseEBNFParserListener
-	stack             []*Grammar
+	stack             []*schemas.Grammar
 	currentSymbolId   int
-	currentProduction *Grammar
-	productions       map[string]*Grammar
+	currentProduction *schemas.Grammar
+	productions       map[string]*schemas.Grammar
 	logger            *slog.Logger
 }
 
 func newEbnfListener() *ebnfListener {
 	textHandler := slog.NewTextHandler(os.Stdout, nil)
-	callerInfoHandler := NewCallerInfoHandler(textHandler)
+	callerInfoHandler := log.NewCallerInfoHandler(textHandler)
 	logger := slog.New(callerInfoHandler)
 
 	listener := &ebnfListener{
 		currentSymbolId:   0,
-		currentProduction: &Grammar{},
-		productions:       map[string]*Grammar{},
-		stack:             []*Grammar{},
+		currentProduction: &schemas.Grammar{},
+		productions:       map[string]*schemas.Grammar{},
+		stack:             []*schemas.Grammar{},
 		logger:            logger,
 	}
 	return listener
 }
 
 func (l *ebnfListener) generateId() string {
-	id := l.currentProduction.ID + "#" + strconv.Itoa(l.currentSymbolId)
+	id := l.currentProduction.GetID() + "#" + strconv.Itoa(l.currentSymbolId)
 	l.currentSymbolId++
 	return id
 }
 
-func (l *ebnfListener) top() *Grammar {
+func (l *ebnfListener) top() *schemas.Grammar {
 	return l.stack[len(l.stack)-1]
 }
 
@@ -96,16 +64,16 @@ func (l *ebnfListener) pop() {
 	l.stack = l.stack[:len(l.stack)-1]
 }
 
-func (l *ebnfListener) push(g *Grammar) {
+func (l *ebnfListener) push(g *schemas.Grammar) {
 	l.stack = append(l.stack, g)
 }
 
-func (l *ebnfListener) save(g *Grammar) {
-	l.productions[g.ID] = g
+func (l *ebnfListener) save(g *schemas.Grammar) {
+	l.productions[g.GetID()] = g
 }
 
 func (l *ebnfListener) clear() {
-	l.stack = []*Grammar{}
+	l.stack = []*schemas.Grammar{}
 }
 
 func (l *ebnfListener) EnterProduction(c *ebnf.ProductionContext) {
@@ -117,7 +85,7 @@ func (l *ebnfListener) EnterProduction(c *ebnf.ProductionContext) {
 		l.clear()
 		l.push(p)
 	} else {
-		g := NewGrammar(NewContext(), GrammarProduction, name, c.GetText(), nil)
+		g := schemas.NewGrammar(schemas.GrammarProduction, name, c.GetText(), nil)
 		l.currentProduction = g
 		l.clear()
 		l.save(g)
@@ -130,7 +98,7 @@ func (l *ebnfListener) ExitProduction(c *ebnf.ProductionContext) {
 
 func (l *ebnfListener) EnterExpr(c *ebnf.ExprContext) {
 	// expr 这层暂时不管，因为只有单个选择。但为了保持尊重，新建一个symbol
-	g := NewGrammar(NewContext(), GrammarExpr, l.generateId(), c.GetText(), nil)
+	g := schemas.NewGrammar(schemas.GrammarExpr, l.generateId(), c.GetText(), nil)
 	l.top().AddSymbol(g)
 	l.push(g)
 }
@@ -140,7 +108,7 @@ func (l *ebnfListener) ExitExpr(c *ebnf.ExprContext) {
 
 func (l *ebnfListener) EnterTerm(c *ebnf.TermContext) {
 	l.logger.Info(c.GetText())
-	g := NewGrammar(NewContext(), GrammarTerm, l.generateId(), c.GetText(), nil)
+	g := schemas.NewGrammar(schemas.GrammarTerm, l.generateId(), c.GetText(), nil)
 	l.top().AddSymbol(g)
 	l.push(g)
 }
@@ -152,7 +120,7 @@ func (l *ebnfListener) ExitTerm(c *ebnf.TermContext) {
 // EnterID one of factor branch
 func (l *ebnfListener) EnterID(c *ebnf.IDContext) {
 	l.logger.Info(c.GetText())
-	g := NewGrammar(NewContext(), GrammarID, l.generateId(), c.GetText(), nil)
+	g := schemas.NewGrammar(schemas.GrammarID, l.generateId(), c.GetText(), nil)
 	l.top().AddSymbol(g)
 	l.push(g)
 }
@@ -160,21 +128,21 @@ func (l *ebnfListener) ExitID(c *ebnf.IDContext) {
 	l.pop()
 }
 
-// EnterSTR one of factor branch
-func (l *ebnfListener) EnterSTR(c *ebnf.STRContext) {
-	l.logger.Info(c.GetText())
-	g := NewGrammar(NewContext(), GrammarTerminal, l.generateId(), c.GetText(), nil)
-	l.top().AddSymbol(g)
-	l.push(g)
-}
-func (l *ebnfListener) ExitSTR(c *ebnf.STRContext) {
-	l.pop()
-}
+//// EnterSTR one of factor branch
+//func (l *ebnfListener) EnterSTR(c *ebnf.STRContext) {
+//	l.logger.Info(c.GetText())
+//	g := schemas.NewGrammar( schemas.GrammarTerminal, l.generateId(), c.GetText(), nil)
+//	l.top().AddSymbol(g)
+//	l.push(g)
+//}
+//func (l *ebnfListener) ExitSTR(c *ebnf.STRContext) {
+//	l.pop()
+//}
 
 // EnterQUOTE one of factor branch
 func (l *ebnfListener) EnterQUOTE(c *ebnf.QUOTEContext) {
 	l.logger.Info(c.GetText())
-	g := NewGrammar(NewContext(), GrammarTerminal, l.generateId(), c.GetText(), nil)
+	g := schemas.NewGrammar(schemas.GrammarTerminal, l.generateId(), c.GetText(), nil)
 	l.top().AddSymbol(g)
 	l.push(g)
 }
@@ -185,7 +153,7 @@ func (l *ebnfListener) ExitQUOTE(c *ebnf.QUOTEContext) {
 // one of factor branch
 func (l *ebnfListener) EnterPAREN(c *ebnf.PARENContext) {
 	l.logger.Info(c.GetText())
-	g := NewGrammar(NewContext(), GrammarPAREN, l.generateId(), c.GetText(), nil)
+	g := schemas.NewGrammar(schemas.GrammarPAREN, l.generateId(), c.GetText(), nil)
 	l.top().AddSymbol(g)
 	l.push(g)
 }
@@ -196,7 +164,7 @@ func (l *ebnfListener) ExitPAREN(c *ebnf.PARENContext) {
 // one of factor branch
 func (l *ebnfListener) EnterBRACKET(c *ebnf.BRACKETContext) {
 	l.logger.Info(c.GetText())
-	g := NewGrammar(NewContext(), GrammarBRACKET, l.generateId(), c.GetText(), nil)
+	g := schemas.NewGrammar(schemas.GrammarBRACKET, l.generateId(), c.GetText(), nil)
 	l.top().AddSymbol(g)
 	l.push(g)
 }
@@ -207,7 +175,7 @@ func (l *ebnfListener) ExitBRACKET(c *ebnf.BRACKETContext) {
 // one of factor branch
 func (l *ebnfListener) EnterBRACE(c *ebnf.BRACEContext) {
 	l.logger.Info(c.GetText())
-	g := NewGrammar(NewContext(), GrammarBRACE, l.generateId(), c.GetText(), nil)
+	g := schemas.NewGrammar(schemas.GrammarBRACE, l.generateId(), c.GetText(), nil)
 	l.top().AddSymbol(g)
 	l.push(g)
 }
@@ -216,14 +184,66 @@ func (l *ebnfListener) ExitBRACE(c *ebnf.BRACEContext) {
 }
 
 // one of factor branch
-func (l *ebnfListener) EnterRECU(c *ebnf.RECUContext) {
+func (l *ebnfListener) EnterREP(c *ebnf.REPContext) {
 	l.logger.Info(c.GetText())
-	g := NewGrammar(NewContext(), GrammarRECU, l.generateId(), c.GetText(), nil)
+	g := schemas.NewGrammar(schemas.GrammarREP, l.generateId(), c.GetText(), nil)
 	l.top().AddSymbol(g)
 	l.push(g)
 }
 
 // one of factor branch
-func (l *ebnfListener) ExitRECU(c *ebnf.RECUContext) {
+func (l *ebnfListener) ExitREP(c *ebnf.REPContext) {
 	l.pop()
+}
+
+// one of factor branch
+func (l *ebnfListener) EnterPLUS(c *ebnf.PLUSContext) {
+	l.logger.Info(c.GetText())
+	g := schemas.NewGrammar(schemas.GrammarPLUS, l.generateId(), c.GetText(), nil)
+	l.top().AddSymbol(g)
+	l.push(g)
+}
+
+// one of factor branch
+func (l *ebnfListener) ExitPLUS(c *ebnf.PLUSContext) {
+	l.pop()
+}
+
+// one of factor branch
+func (l *ebnfListener) EnterEXT(c *ebnf.EXTContext) {
+	l.logger.Info(c.GetText())
+	g := schemas.NewGrammar(schemas.GrammarEXT, l.generateId(), c.GetText(), nil)
+	l.top().AddSymbol(g)
+	l.push(g)
+}
+
+// one of factor branch
+func (l *ebnfListener) ExitEXT(c *ebnf.EXTContext) {
+	l.pop()
+}
+
+// one of factor branch
+func (l *ebnfListener) EnterSUB(c *ebnf.SUBContext) {
+	l.logger.Info(c.GetText())
+	g := schemas.NewGrammar(schemas.GrammarSUB, l.generateId(), c.GetText(), nil)
+	l.top().AddSymbol(g)
+	l.push(g)
+}
+
+// one of factor branch
+func (l *ebnfListener) ExitSUB(c *ebnf.SUBContext) {
+	l.pop()
+}
+
+func Parse(file string) (map[string]*schemas.Grammar, error) {
+	is, err := antlr.NewFileStream(file)
+	if err != nil {
+		return nil, err
+	}
+	lexer := ebnf.NewEBNFLexer(is)
+	stream := antlr.NewCommonTokenStream(lexer, antlr.TokenDefaultChannel)
+	parser := ebnf.NewEBNFParser(stream)
+	listener := newEbnfListener()
+	antlr.ParseTreeWalkerDefault.Walk(listener, parser.Ebnf())
+	return listener.productions, nil
 }

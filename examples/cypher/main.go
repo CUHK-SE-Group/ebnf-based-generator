@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/CUHK-SE-Group/ebnf-based-generator/parser"
+	"github.com/CUHK-SE-Group/ebnf-based-generator/schemas"
 	"log"
 	"math/rand"
 	"os"
@@ -10,15 +10,15 @@ import (
 	"strings"
 )
 
-func OrGen(g *parser.Grammar, r *parser.Result) {
-	fmt.Printf("traversaling %v\n", g.ID)
-	var selected *parser.Grammar
-	maxChoice := 2 * len(*g.Symbols)
+func OrGen(g *schemas.Grammar, r *schemas.Result) {
+	fmt.Printf("traversaling %v\n", g.id)
+	var selected *schemas.Grammar
+	maxChoice := 2 * len(*g.symbols)
 	for i := 0; i < maxChoice; i++ {
-		selected = (*g.Symbols)[rand.Int()%len(*g.Symbols)]
-		sym := strings.Split(selected.ID, "#")[0]
+		selected = (*g.symbols)[rand.Int()%len(*g.symbols)]
+		sym := strings.Split(selected.id, "#")[0]
 		if cur, ok := g.Ctx.SymCount[sym]; ok {
-			if limit, ex := g.Config.SymbolLimit[sym]; ex {
+			if limit, ex := g.confgi.SymbolLimit[sym]; ex {
 				if cur < limit {
 					r.AddNode(selected)
 					selected.Generate(r)
@@ -43,23 +43,23 @@ func main() {
 		log.Fatal("could not start CPU profile: ", err)
 	}
 	defer pprof.StopCPUProfile()
-	parser.Init()
+	schemas.Init()
 
-	var Or = parser.GenericOperator{
+	var Or = schemas.GenericOperator{
 		GenHandler: OrGen,
 		Text:       "Or",
-		BeforeGenHandlers: []parser.Handler{func(g *parser.Grammar, r *parser.Result) {
+		BeforeGenHandlers: []schemas.Handler{func(g *schemas.Grammar, r *schemas.Result) {
 
 		}},
 	}
-	parser.RegisterOperator(&Or)
+	schemas.RegisterOperator(&Or)
 
-	conf := parser.Config{SymbolLimit: map[string]int{
+	conf := schemas.Config{SymbolLimit: map[string]int{
 		"oC_Match":                10,
 		"oC_Unwind":               10,
 		"oC_ComparisonExpression": 3,
 	}}
-	grammar, err := parser.ParseGrammarDefinition("examples/cypher/cypher.ebnf", "oC_Cypher", &conf)
+	grammar, err := schemas.ParseGrammarDefinition("examples/cypher/cypher.ebnf", "oC_Cypher", &conf)
 	if err != nil {
 		panic(err)
 	}

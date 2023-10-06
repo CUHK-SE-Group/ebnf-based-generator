@@ -12,15 +12,22 @@ expr: term (OR term)*;
 term: factor (COMMA factor)*;
 
 factor: identifier #ID
-      | STRING #STR
       | LPAREN expr RPAREN #PAREN
       | LBRACKET expr RBRACKET #BRACKET
       | LBRACE expr RBRACE  #BRACE
+      | factor choice #None
       | QUOTE TEXT QUOTE #QUOTE
-      | factor (REP | PLUS | EXT | SUB) #RECU
       ;
 
+
+choice: REP #REP
+        | PLUS #PLUS
+        | EXT #EXT
+        | SUB #SUB
+        ;
+
 identifier: ID;
+
 
 
 
