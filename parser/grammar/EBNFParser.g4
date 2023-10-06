@@ -3,29 +3,35 @@ parser grammar EBNFParser;
 options {
     tokenVocab = 'EBNFLexer';
 }
+ebnf: production*;
 
-regex : QUOTE regexContents* QUOTE;
+production: ID EQUAL expr SEMICOLON;
 
-regexContents : TEXT
-               | ESCAPE
-               ;
+expr: term (OR term)*;
 
-unaryOp: REP | EXT;
-binaryOp: OR;
+term: factor (COMMA factor)*;
 
-symbol:
-     ID #SubProduction
-    | regex #Terminal
-    ;
+factor: identifier #ID
+      | LPAREN expr RPAREN #PAREN
+      | LBRACKET expr RBRACKET #BRACKET
+      | LBRACE expr RBRACE  #BRACE
+      | factor choice #None
+      | QUOTE TEXT QUOTE #QUOTE
+      ;
 
-tmp: symbol #None
-    | LPAREN expr RPAREN #SubSymbol
-    | tmp unaryOp #SymbolWithUOp
-    ;
 
-expr: expr binaryOp expr+ #SymbolWithBOp
-    | tmp+ #SymbolWithCat
-    ;
-production: ID COLON expr SEMICOLON;
+choice: REP #REP
+        | PLUS #PLUS
+        | EXT #EXT
+        | SUB #SUB
+        ;
 
-ebnf : production*;
+identifier: ID;
+
+
+
+
+
+
+
+

@@ -6,23 +6,25 @@ LINE_COMMENT: '//' ~[\r\n]* -> skip;
 COLON: ':';
 LPAREN: '(';
 RPAREN: ')';
+LBRACKET: '[';
+RBRACKET: ']';
+LBRACE: '{';
+RBRACE: '}';
 SEMICOLON: ';';
+EQUAL: '=' | '::=';
 
-OR : '|';
+OR: '|';
+SUB: '-';
 REP: '*';
+PLUS: '+';
 EXT: '?';
-
+COMMA: ',';
+ID: [_\p{Alpha}][_\p{Alnum}]*;
+WHITESPACE: [ \r\n\t]+ -> skip;
 QUOTE: '\'' -> pushMode(IN_STRING);
 
-ID: [_\p{Alpha}][_\p{Alnum}]*;
-
-WHITESPACE: [ \r\n\t]+ -> skip;
 
 mode IN_STRING;
-
-TEXT: ~[\\']+;
-ESCAPE: '\\' .;
 DEQUOTE: '\'' -> type(QUOTE), popMode;
-
-
-
+TEXT: ~[\\']+;
+fragment ESC: '\\' [btnr"\\];

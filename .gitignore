@@ -5,3 +5,4 @@
 *output*
 parser/ebnf/
 go.sum
+*.prof

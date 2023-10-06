@@ -1,0 +1,23 @@
+expression = term
+    | expression, '+', term
+    | expression, '-', term
+    ;
+
+term = factor
+    | term,'*', factor
+    | term,'/',factor
+    | term,'%',factor
+    ;
+
+factor
+    = primary
+    | '-',factor
+    | '+',factor
+    ;
+
+primary
+    = IDENTIFIER
+    | INTEGER
+    | FLOATING_POINT_LITERAL
+    | '(',expression,')'
+    ;

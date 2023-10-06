@@ -1,34 +1,4 @@
-/*
 
-EBNF  to be viewed with https://www.bottlecaps.de/rr/ui
-
-Here is a manually conversion using as base
-sql-2016-foundation-grammar.txt from https://github.com/JakeWheat/sql-overview
-that we can see a railroad diagram for the grammar by copying
-and paste the EBNF shown bellow on https://www.bottlecaps.de/rr/ui
-in the tab Edit Grammar then switching to the tab View Diagram.
-
-Obs: It's a heavy diagram that takes time and resources to view.
-
-Non reserved words appear with * as suffix, ex: SUBSTRING -> SUBSTRING*.
-
-You can navigate through the grammar by clicking the rectangular boxes.
-
-*/
-
-
-/*
-22 Direct invocation of SQL
-
-
-22.1 direct_SQL_statement
-
-Function
-Specify direct execution of SQL.
-
-
-Format
-*/
 direct_SQL_statement ::=
   directly_executable_statement semicolon
 
@@ -53,17 +23,6 @@ direct_implementation_defined_statement ::=
   "!! See the Syntax Rules."
 
 
-/*
-5 Lexical elements
-
-
-5.1     SQL_terminal_character
-
-Function
-Define the terminal symbols of the SQL language and the elements of strings.
-
-Format
-*/
 SQL_terminal_character ::=
   SQL_language_character
 
@@ -217,15 +176,7 @@ dollar_sign ::=
 
 apostrophe ::=
   "'"
-/*
-5.2     token and separator
 
-Function
-Specify lexical units (tokens and separators) that participate in SQL language.
-
-
-Format
-*/
 token ::=
     nondelimiter_token
   | delimiter_token
