@@ -20,7 +20,7 @@ func TestHandler(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	for i := 0; i < 200; i++ { // todo 此处会无限循环，并没有任何输出，因为CatHandler只hook了 GrammarProduction 和 GrammarExpr 两种type
+	for i := 0; i < 1000; i++ { // todo 此处会无限循环，并没有任何输出，因为CatHandler只hook了 GrammarProduction 和 GrammarExpr 两种type
 		chain.Next(ctx, func(result *schemas.Result) {
 			ctx = result.GetCtx()
 			ctx.HandlerIndex = 0

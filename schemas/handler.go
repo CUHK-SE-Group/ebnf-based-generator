@@ -3,8 +3,8 @@ package schemas
 import (
 	"errors"
 	"github.com/lucasjones/reggen"
-	"golang.org/x/exp/rand"
 	"log/slog"
+	"math/rand"
 	"regexp"
 )
 
@@ -38,10 +38,11 @@ func (h *CatHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
 	}
 	// todo 此处的遍历树的手段会导致先生成后加入的节点，需要修改
 	ctx.SymbolStack.Pop()
-	for _, v := range *cur.GetSymbols() {
-		ctx.SymbolStack.Push(v)
-	}
+	ctx.SymbolStack.Push((*cur.GetSymbols())[0])
 	chain.Next(ctx, cb)
+	for i := 1; i < len(*cur.GetSymbols()); i++ {
+		ctx.SymbolStack.Push((*cur.GetSymbols())[i])
+	}
 }
 
 func (h *CatHandler) HookRoute() []regexp.Regexp {
