@@ -2,6 +2,7 @@ package schemas
 
 import (
 	"errors"
+	"fmt"
 	"github.com/lucasjones/reggen"
 	"log/slog"
 	"math/rand"
@@ -118,6 +119,20 @@ func (h *IDHandler) Type() GrammarType {
 type TermHandler struct {
 }
 
+func (h *TermHandler) isTermPreserve(g *Grammar) bool {
+	content := g.GetContent()
+	return (content[0] == content[len(content)-1]) && (content[0] == '\'')
+}
+
+func (h *TermHandler) stripQuote(content string) string {
+	if content[0] == content[len(content)-1] {
+		if (content[0] == '\'') || (content[0] == '"') {
+			return content[1 : len(content)-1]
+		}
+	}
+	return content
+}
+
 func (h *TermHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
 	cur := ctx.SymbolStack.Top()
 	ctx.SymbolStack.Pop()
@@ -126,11 +141,20 @@ func (h *TermHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
 		slog.Error("Pattern mismatched[Terminal]")
 		return
 	}
-	result, err := reggen.Generate(cur.content, 1)
-	if err != nil {
-		slog.Error(err.Error())
-		return
+	result := ""
+	regex := h.stripQuote(cur.GetContent())
+	if h.isTermPreserve(cur) {
+		result = regex
+	} else {
+		var err error
+		result, err = reggen.Generate(regex, 1)
+		if err != nil {
+			slog.Error(err.Error())
+			return
+		}
+
 	}
+	fmt.Println("term generated: ", result)
 	ctx.Result += result
 	chain.Next(ctx, cb)
 }

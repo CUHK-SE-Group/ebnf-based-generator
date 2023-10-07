@@ -26,5 +26,5 @@ QUOTE: '\'' -> pushMode(IN_STRING);
 
 mode IN_STRING;
 DEQUOTE: '\'' -> type(QUOTE), popMode;
-TEXT: ~[\\']+;
-fragment ESC: '\\' [btnr"\\];
+TEXT: (~[\\']|ESC)+;
+fragment ESC: '\\' .;
