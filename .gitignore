@@ -6,3 +6,5 @@
 parser/ebnf/
 go.sum
 *.prof
+*.tokens
+gen/
