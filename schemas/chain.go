@@ -33,9 +33,9 @@ func (c *Chain) Next(ctx *Context, f ResponseCallBack) {
 			break
 		}
 		// 如果类型符合
-		fmt.Println(ctx.SymbolStack.Top().gtype)
-		fmt.Println(c.Handlers[index].Type())
 		if ctx.SymbolStack.Top().gtype&c.Handlers[index].Type() != 0 {
+			fmt.Println("passing", c.Handlers[index].Name())
+			fmt.Println("cur node: ", ctx.SymbolStack.Top().content)
 			c.Handlers[index].Handle(c, ctx, f)
 			return
 		}

@@ -3,11 +3,17 @@ package schemas
 import (
 	"errors"
 	"fmt"
+	"github.com/lucasjones/reggen"
+	"log/slog"
+	"math/rand"
 	"regexp"
 )
 
 const (
-	CatHandlerName = "cat_handler"
+	CatHandlerName      = "cat_handler"
+	OrHandlerName       = "or_handler"
+	IDHandlerName       = "id_handler"
+	TerminalHandlerName = "terminal_handler"
 )
 
 var errViolateBuildIn = errors.New("can not replace build-in handler func")
@@ -26,19 +32,18 @@ type CatHandler struct {
 }
 
 func (h *CatHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
-	children := ctx.SymbolStack.Top().GetSymbols()
-	if len(*children) == 0 {
-		ctx.SymbolStack.Pop()
+	cur := ctx.SymbolStack.Top()
+	if len(*cur.GetSymbols()) == 0 {
 		chain.Next(ctx, cb)
 		return
 	}
 	// todo 此处的遍历树的手段会导致先生成后加入的节点，需要修改
 	ctx.SymbolStack.Pop()
-	for _, v := range *children {
-		fmt.Println(v.content)
-		ctx.SymbolStack.Push(v)
-	}
+	ctx.SymbolStack.Push((*cur.GetSymbols())[0])
 	chain.Next(ctx, cb)
+	for i := 1; i < len(*cur.GetSymbols()); i++ {
+		ctx.SymbolStack.Push((*cur.GetSymbols())[i])
+	}
 }
 
 func (h *CatHandler) HookRoute() []regexp.Regexp {
@@ -50,5 +55,118 @@ func (h *CatHandler) Name() string {
 }
 
 func (h *CatHandler) Type() GrammarType {
-	return GrammarProduction | GrammarExpr
+	return GrammarProduction | GrammarTerm
+}
+
+type OrHandler struct {
+}
+
+func (h *OrHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
+	cur := ctx.SymbolStack.Top()
+	if len(*cur.GetSymbols()) == 0 {
+		chain.Next(ctx, cb)
+		return
+	}
+	ctx.SymbolStack.Pop()
+	idx := rand.Int() % len(*cur.GetSymbols())
+	ctx.SymbolStack.Push((*cur.GetSymbols())[idx])
+	chain.Next(ctx, cb)
+}
+
+func (h *OrHandler) HookRoute() []regexp.Regexp {
+	return make([]regexp.Regexp, 0)
+}
+
+func (h *OrHandler) Name() string {
+	return OrHandlerName
+}
+
+func (h *OrHandler) Type() GrammarType {
+	return GrammarExpr
+}
+
+type IDHandler struct {
+}
+
+func (h *IDHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
+	cur := ctx.SymbolStack.Top()
+	ctx.SymbolStack.Pop()
+
+	if len(*cur.GetSymbols()) != 0 {
+		slog.Error("Pattern mismatched[Identifier]")
+		return
+	}
+	if _, ok := ctx.grammarMap[cur.content]; !ok {
+		slog.Error("The identifier does not Existed")
+		panic("fuck")
+	}
+	ctx.SymbolStack.Push(ctx.grammarMap[cur.content])
+	chain.Next(ctx, cb)
+}
+
+func (h *IDHandler) HookRoute() []regexp.Regexp {
+	return make([]regexp.Regexp, 0)
+}
+
+func (h *IDHandler) Name() string {
+	return IDHandlerName
+}
+
+func (h *IDHandler) Type() GrammarType {
+	return GrammarID
+}
+
+type TermHandler struct {
+}
+
+func (h *TermHandler) isTermPreserve(g *Grammar) bool {
+	content := g.GetContent()
+	return (content[0] == content[len(content)-1]) && (content[0] == '\'')
+}
+
+func (h *TermHandler) stripQuote(content string) string {
+	if content[0] == content[len(content)-1] {
+		if (content[0] == '\'') || (content[0] == '"') {
+			return content[1 : len(content)-1]
+		}
+	}
+	return content
+}
+
+func (h *TermHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
+	cur := ctx.SymbolStack.Top()
+	ctx.SymbolStack.Pop()
+
+	if len(*cur.GetSymbols()) != 0 {
+		slog.Error("Pattern mismatched[Terminal]")
+		return
+	}
+	result := ""
+	regex := h.stripQuote(cur.GetContent())
+	if h.isTermPreserve(cur) {
+		result = regex
+	} else {
+		var err error
+		result, err = reggen.Generate(regex, 1)
+		if err != nil {
+			slog.Error(err.Error())
+			return
+		}
+
+	}
+	fmt.Println("term generated: ", result)
+	ctx.Result += result
+	chain.Next(ctx, cb)
+}
+
+func (h *TermHandler) HookRoute() []regexp.Regexp {
+	return make([]regexp.Regexp, 0)
+}
+
+func (h *TermHandler) Name() string {
+	return TerminalHandlerName
+}
+
+func (h *TermHandler) Type() GrammarType {
+	return GrammarTerminal
 }

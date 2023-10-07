@@ -36,6 +36,7 @@ type Context struct {
 	HandlerIndex   int
 	SymbolStack    *Stack
 	ProductionRoot *Grammar
+	Result         string
 }
 
 func NewContext(grammarMap map[string]*Grammar, startSymbol string) (*Context, error) {

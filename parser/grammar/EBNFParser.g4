@@ -17,6 +17,7 @@ factor: identifier #ID
       | LBRACE expr RBRACE  #BRACE
       | factor choice #None
       | QUOTE TEXT QUOTE #QUOTE
+      | DOUBLEQUOTE REGTEXT DOUBLEQUOTE #QUOTE
       ;
 
 
