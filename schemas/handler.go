@@ -37,7 +37,7 @@ func (h *CatHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
 		chain.Next(ctx, cb)
 		return
 	}
-	// todo 此处的遍历树的手段会导致先生成后加入的节点，需要修改
+	fmt.Println(cur.GetContent())
 	ctx.SymbolStack.Pop()
 	ctx.SymbolStack.Push((*cur.GetSymbols())[0])
 	chain.Next(ctx, cb)
@@ -98,7 +98,7 @@ func (h *IDHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
 	}
 	if _, ok := ctx.grammarMap[cur.content]; !ok {
 		slog.Error("The identifier does not Existed")
-		panic("fuck")
+		panic("The identifier does not Existed")
 	}
 	ctx.SymbolStack.Push(ctx.grammarMap[cur.content])
 	chain.Next(ctx, cb)

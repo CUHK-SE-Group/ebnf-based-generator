@@ -1,4 +1,4 @@
-Cypher = [SP], Statement, [[SP], ';'], [SP], EOI ;
+Cypher = [SP], Statement, [[SP], ';'], [SP] ;
 
 Statement = Query ;
 

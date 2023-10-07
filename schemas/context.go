@@ -6,7 +6,8 @@ import (
 )
 
 type Stack struct {
-	q []*Grammar
+	q     []*Grammar
+	trace []string
 }
 
 func (q *Stack) Push(g *Grammar) *Stack {
@@ -15,6 +16,7 @@ func (q *Stack) Push(g *Grammar) *Stack {
 }
 
 func (q *Stack) Pop() *Stack {
+	q.trace = append(q.trace, q.q[len(q.q)-1].id)
 	q.q = q.q[:len(q.q)-1]
 	return q
 }
@@ -26,7 +28,8 @@ func (q *Stack) Top() *Grammar {
 }
 
 func NewQueue() *Stack {
-	return &Stack{make([]*Grammar, 0)}
+	return &Stack{q: make([]*Grammar, 0),
+		trace: make([]string, 0)}
 }
 
 type Context struct {
@@ -37,8 +40,12 @@ type Context struct {
 	SymbolStack    *Stack
 	ProductionRoot *Grammar
 	Result         string
+	finish         bool
 }
 
+func (c *Context) GetFinish() bool {
+	return c.finish
+}
 func NewContext(grammarMap map[string]*Grammar, startSymbol string) (*Context, error) {
 	_, ok := grammarMap[startSymbol]
 	if !ok {
