@@ -39,11 +39,10 @@ func (h *CatHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
 	}
 	fmt.Println(cur.GetContent())
 	ctx.SymbolStack.Pop()
-	ctx.SymbolStack.Push((*cur.GetSymbols())[0])
-	chain.Next(ctx, cb)
-	for i := 1; i < len(*cur.GetSymbols()); i++ {
+	for i := len(*cur.GetSymbols()) - 1; i >= 0; i-- {
 		ctx.SymbolStack.Push((*cur.GetSymbols())[i])
 	}
+	chain.Next(ctx, cb)
 }
 
 func (h *CatHandler) HookRoute() []regexp.Regexp {

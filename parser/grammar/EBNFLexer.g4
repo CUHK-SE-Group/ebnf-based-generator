@@ -3,7 +3,7 @@ lexer grammar EBNFLexer;
 // Tokens
 LINE_COMMENT: '//' ~[\r\n]* -> skip;
 
-COLON: ':';
+//COLON: ':';
 LPAREN: '(';
 RPAREN: ')';
 LBRACKET: '[';
