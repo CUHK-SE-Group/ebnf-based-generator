@@ -1,6 +1,7 @@
 package schemas
 
 import (
+	"fmt"
 	"log/slog"
 )
 
@@ -27,7 +28,10 @@ func (c *Chain) AddHandler(h Handler) {
 func (c *Chain) Next(ctx *Context, f ResponseCallBack) {
 	for index := ctx.HandlerIndex; index < len(c.Handlers); index++ {
 		ctx.HandlerIndex++
-		if ctx.SymbolStack.Top() == nil {
+		if ctx.SymbolStack.Top() == nil || ctx.SymbolStack.Empty() {
+			if !ctx.SymbolStack.Empty() {
+				panic(ctx)
+			}
 			if ctx.finish {
 				slog.Error("Warning: Symbol queue should not be empty")
 			}
@@ -37,8 +41,8 @@ func (c *Chain) Next(ctx *Context, f ResponseCallBack) {
 
 		// 如果类型符合
 		if ctx.SymbolStack.Top().gtype&c.Handlers[index].Type() != 0 && satisfy(ctx, c.Handlers[index]) {
-			//fmt.Println("passing", c.Handlers[index].Name())
-			//fmt.Println("cur node: ", ctx.SymbolStack.Top().content)
+			fmt.Println("passing", c.Handlers[index].Name())
+			fmt.Println("cur node: ", ctx.SymbolStack.Top().content)
 			c.Handlers[index].Handle(c, ctx, f)
 			return
 		}

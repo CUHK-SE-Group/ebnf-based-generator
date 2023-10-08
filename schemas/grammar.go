@@ -2,7 +2,6 @@ package schemas
 
 import (
 	"fmt"
-	"github.com/goccy/go-graphviz"
 	"github.com/goccy/go-graphviz/cgraph"
 	"github.com/golang/glog"
 	"strings"
@@ -50,6 +49,9 @@ func NewGrammar(t GrammarType, id string, content string, conf *Config) *Grammar
 func (g *Grammar) GetID() string {
 	return g.id
 }
+func (g *Grammar) GetType() GrammarType {
+	return g.gtype
+}
 
 func (g *Grammar) SetRoot(root *Grammar) *Grammar {
 	g.root = root
@@ -92,17 +94,17 @@ func (g *Grammar) GetContent() string {
 	return g.content
 }
 
-func (g *Grammar) Visualize(filename string, expandSub bool) {
-	gh := graphviz.New()
-	graph, _ := gh.Graph()
-	visNode = make(map[string]*cgraph.Node)
-	g.addNodeToGraph(graph, nil, g.GetContent(), expandSub)
-
-	err := gh.RenderFilename(graph, graphviz.PNG, filename)
-	if err != nil {
-		panic(err)
-	}
-}
+//func (g *Grammar) Visualize(filename string, expandSub bool) {
+//	gh := graphviz.New()
+//	graph, _ := gh.Graph()
+//	visNode = make(map[string]*cgraph.Node)
+//	g.addNodeToGraph(graph, nil, g.GetContent(), expandSub)
+//
+//	err := gh.RenderFilename(graph, graphviz.PNG, filename)
+//	if err != nil {
+//		panic(err)
+//	}
+//}
 
 func (g *Grammar) addNodeToGraph(graph *cgraph.Graph, parent *cgraph.Node, label string, expandSub bool) {
 	var n *cgraph.Node
