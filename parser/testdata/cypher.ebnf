@@ -404,7 +404,7 @@ IdentifierStart = "i"
 IdentifierPart = 'part'
                ;
 
-EscapedSymbolicName = { '`', { ANY - ('`') }, '`' }- ;
+EscapedSymbolicName = { '`', { ANY-('`') }, '`' }- ;
 
 SP = { whitespace }- ;
 

@@ -50,25 +50,11 @@ func (h *WeightedHandler) Handle(chain *schemas.Chain, ctx *schemas.Context, cb 
 	}
 	var idx int
 	ctx.SymbolStack.Pop()
-	if strings.Contains(cur.GetID(), "factor") {
-		// 没生成过primary，则先生成primary
-		if ctx.SymCount["primary"] == 0 {
-			idx = 0
-		} else {
-			idx = rand.Int() % len(*cur.GetSymbols())
-			ctx.SymCount["primary"] = 1
-		}
-	} else if strings.Contains(cur.GetID(), "term") {
-		if ctx.SymCount["term"] == 0 {
-			idx = 0
-		} else {
-			idx = rand.Int() % len(*cur.GetSymbols())
-		}
-		ctx.SymCount["term"] = 1
-	} else if strings.Contains(cur.GetID(), "primary") {
-		ctx.SymCount["primary"] = 1
-		ctx.SymCount["factor"] = 0
-		ctx.SymCount["term"] = 0
+
+	trace := ctx.SymbolStack.GetTrace()
+	if len(trace)-8 >= 0 && trace[len(trace)-8].GetContent() == "'-'" && strings.Contains(cur.GetID(), "factor") {
+		idx = 0
+		fmt.Println(trace)
 	} else {
 		idx = rand.Int() % len(*cur.GetSymbols())
 	}
@@ -97,7 +83,7 @@ func TestWeightedHandler(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	ctx, err := schemas.NewContext(g, "expression")
+	ctx, err := schemas.NewContext(g, "factor")
 	if err != nil {
 		panic(err)
 	}

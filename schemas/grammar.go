@@ -1,10 +1,10 @@
 package schemas
 
 import (
-	"fmt"
-	"github.com/goccy/go-graphviz/cgraph"
+	"github.com/dominikbraun/graph"
+	"github.com/dominikbraun/graph/draw"
 	"github.com/golang/glog"
-	"strings"
+	"os"
 )
 
 type GrammarType int
@@ -94,49 +94,28 @@ func (g *Grammar) GetContent() string {
 	return g.content
 }
 
-//func (g *Grammar) Visualize(filename string, expandSub bool) {
-//	gh := graphviz.New()
-//	graph, _ := gh.Graph()
-//	visNode = make(map[string]*cgraph.Node)
-//	g.addNodeToGraph(graph, nil, g.GetContent(), expandSub)
-//
-//	err := gh.RenderFilename(graph, graphviz.PNG, filename)
-//	if err != nil {
-//		panic(err)
-//	}
-//}
+func (g *Grammar) Visualize(filename string, expandSub bool) {
+	ghash := func(gram *Grammar) string { return gram.content }
+	gr := graph.New(ghash, graph.Directed(), graph.Rooted())
+	_ = gr.AddVertex(g)
 
-func (g *Grammar) addNodeToGraph(graph *cgraph.Graph, parent *cgraph.Node, label string, expandSub bool) {
-	var n *cgraph.Node
-	visited := false
-	fmt.Println(g.id)
-	if strings.Contains(g.id, "EOF") {
-		return
-	}
-	if node, ok := visNode[g.id]; ok {
-		n = node
-		visited = true
-		return
-	} else {
-		node, err := graph.CreateNode(g.GetID())
-		if err != nil {
-			panic(err)
+	queue := make([]*Grammar, 0)
+	queue = append(queue, g)
+	visited := make(map[string]bool, 0)
+	for len(queue) != 0 {
+		cur := queue[0]
+		queue = queue[1:]
+		visited[cur.id] = true
+		for _, v := range *cur.GetSymbols() {
+			_ = gr.AddVertex(v)
+			_ = gr.AddEdge(cur.content, v.content)
+			if visited[v.id] {
+				continue
+			}
+			queue = append(queue, v)
 		}
-		n = node
-		visNode[g.id] = n
 	}
 
-	if parent != nil {
-		edge, err := graph.CreateEdge(label, parent, n)
-		if err != nil {
-			panic(err)
-		}
-		edge.SetLabel(label)
-	}
-	if (parent != nil && g.gtype == GrammarProduction && !expandSub) || visited {
-		return
-	}
-	for _, child := range *g.symbols {
-		child.addNodeToGraph(graph, n, g.GetID(), expandSub)
-	}
+	file, _ := os.Create(filename)
+	_ = draw.DOT(gr, file)
 }

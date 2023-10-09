@@ -40,8 +40,11 @@ func (q *Stack) Empty() bool {
 	}
 	return true
 }
+func (q *Stack) GetTrace() []*Grammar {
+	return q.trace
+}
 
-func NewQueue() *Stack {
+func NewStack() *Stack {
 	return &Stack{q: make([]*Grammar, 0),
 		trace: make([]*Grammar, 0)}
 }
@@ -68,7 +71,7 @@ func NewContext(grammarMap map[string]*Grammar, startSymbol string) (*Context, e
 	return &Context{
 		SymCount:       map[string]int{},
 		grammarMap:     grammarMap,
-		SymbolStack:    NewQueue().Push(grammarMap[startSymbol]),
+		SymbolStack:    NewStack().Push(grammarMap[startSymbol]),
 		ProductionRoot: grammarMap[startSymbol],
 	}, nil
 }

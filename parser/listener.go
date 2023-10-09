@@ -98,7 +98,6 @@ func (l *ebnfListener) ExitProduction(c *ebnf.ProductionContext) {
 }
 
 func (l *ebnfListener) EnterExpr(c *ebnf.ExprContext) {
-	// expr 这层暂时不管，因为只有单个选择。但为了保持尊重，新建一个symbol
 	g := schemas.NewGrammar(schemas.GrammarExpr, l.generateId(), c.GetText(), nil)
 	l.top().AddSymbol(g)
 	l.push(g)
@@ -247,4 +246,31 @@ func Parse(file string) (map[string]*schemas.Grammar, error) {
 	listener := newEbnfListener()
 	antlr.ParseTreeWalkerDefault.Walk(listener, parser.Ebnf())
 	return listener.productions, nil
+}
+
+func MergeProduction(p map[string]*schemas.Grammar, startSymbol string) *schemas.Grammar {
+	root, ok := p[startSymbol]
+	if !ok {
+		return nil
+	}
+
+	queue := make([]*schemas.Grammar, 0)
+	queue = append(queue, root)
+	visited := make([]*schemas.Grammar, 0)
+	for len(queue) != 0 {
+		cur := queue[0]
+		queue = queue[1:]
+		if len(*cur.GetSymbols()) == 0 {
+			if cur.GetType() == schemas.GrammarID {
+				visited = append(visited, cur)
+			}
+		}
+		for _, v := range *cur.GetSymbols() {
+			queue = append(queue, v)
+		}
+	}
+	for _, v := range visited {
+		*v.GetSymbols() = append(*v.GetSymbols(), p[v.GetContent()])
+	}
+	return root
 }
