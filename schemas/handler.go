@@ -2,9 +2,8 @@ package schemas
 
 import (
 	"errors"
-	"fmt"
+	"github.com/golang/glog"
 	"github.com/lucasjones/reggen"
-	"log/slog"
 	"math/rand"
 	"regexp"
 )
@@ -13,7 +12,11 @@ const (
 	CatHandlerName      = "cat_handler"
 	OrHandlerName       = "or_handler"
 	IDHandlerName       = "id_handler"
+	BracketHandlerName  = "Bracket_handler"
+	ParenHandlerName    = "paren_handler"
 	TerminalHandlerName = "terminal_handler"
+	SubHandlerName      = "sub_handler"
+	BraceHandlerName    = "brace_handler"
 )
 
 var errViolateBuildIn = errors.New("can not replace build-in handler func")
@@ -37,13 +40,11 @@ func (h *CatHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
 		chain.Next(ctx, cb)
 		return
 	}
-	// todo 此处的遍历树的手段会导致先生成后加入的节点，需要修改
 	ctx.SymbolStack.Pop()
-	ctx.SymbolStack.Push((*cur.GetSymbols())[0])
-	chain.Next(ctx, cb)
-	for i := 1; i < len(*cur.GetSymbols()); i++ {
+	for i := len(*cur.GetSymbols()) - 1; i >= 0; i-- {
 		ctx.SymbolStack.Push((*cur.GetSymbols())[i])
 	}
+	chain.Next(ctx, cb)
 }
 
 func (h *CatHandler) HookRoute() []regexp.Regexp {
@@ -93,12 +94,12 @@ func (h *IDHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
 	ctx.SymbolStack.Pop()
 
 	if len(*cur.GetSymbols()) != 0 {
-		slog.Error("Pattern mismatched[Identifier]")
+		glog.Error("Pattern mismatched[Identifier]")
 		return
 	}
 	if _, ok := ctx.grammarMap[cur.content]; !ok {
-		slog.Error("The identifier does not Existed")
-		panic("fuck")
+		glog.Errorf("The identifier [%v] does not Existed", cur.content)
+		panic("The identifier does not Existed")
 	}
 	ctx.SymbolStack.Push(ctx.grammarMap[cur.content])
 	chain.Next(ctx, cb)
@@ -138,7 +139,7 @@ func (h *TermHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
 	ctx.SymbolStack.Pop()
 
 	if len(*cur.GetSymbols()) != 0 {
-		slog.Error("Pattern mismatched[Terminal]")
+		glog.Error("Pattern mismatched[Terminal]")
 		return
 	}
 	result := ""
@@ -149,12 +150,11 @@ func (h *TermHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
 		var err error
 		result, err = reggen.Generate(regex, 1)
 		if err != nil {
-			slog.Error(err.Error())
+			glog.Error(err.Error())
 			return
 		}
 
 	}
-	fmt.Println("term generated: ", result)
 	ctx.Result += result
 	chain.Next(ctx, cb)
 }
@@ -169,4 +169,108 @@ func (h *TermHandler) Name() string {
 
 func (h *TermHandler) Type() GrammarType {
 	return GrammarTerminal
+}
+
+type BracketHandler struct {
+}
+
+func (h *BracketHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
+	cur := ctx.SymbolStack.Top()
+	ctx.SymbolStack.Pop()
+
+	if len(*cur.GetSymbols()) == 0 {
+		glog.Error("Pattern mismatched[Identifier]")
+		return
+	}
+	for i := len(*cur.GetSymbols()) - 1; i >= 0; i-- {
+		ctx.SymbolStack.Push(cur.GetSymbol(i))
+	}
+	chain.Next(ctx, cb)
+}
+
+func (h *BracketHandler) HookRoute() []regexp.Regexp {
+	return make([]regexp.Regexp, 0)
+}
+
+func (h *BracketHandler) Name() string {
+	return BracketHandlerName
+}
+
+func (h *BracketHandler) Type() GrammarType {
+	return GrammarBRACKET
+}
+
+type ParenHandler struct {
+}
+
+func (h *ParenHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
+	cur := ctx.SymbolStack.Top()
+	ctx.SymbolStack.Pop()
+	for i := len(*cur.GetSymbols()) - 1; i >= 0; i-- {
+		ctx.SymbolStack.Push(cur.GetSymbol(i))
+	}
+	chain.Next(ctx, cb)
+}
+
+func (h *ParenHandler) HookRoute() []regexp.Regexp {
+	return make([]regexp.Regexp, 0)
+}
+
+func (h *ParenHandler) Name() string {
+	return ParenHandlerName
+}
+
+func (h *ParenHandler) Type() GrammarType {
+	return GrammarPAREN
+}
+
+type BraceHandler struct {
+}
+
+func (h *BraceHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
+	cur := ctx.SymbolStack.Top()
+	ctx.SymbolStack.Pop()
+
+	if len(*cur.GetSymbols()) == 0 {
+		glog.Error("Pattern mismatched[Identifier]")
+		return
+	}
+
+	for i := len(*cur.GetSymbols()) - 1; i >= 0; i-- {
+		ctx.SymbolStack.Push(cur.GetSymbol(i))
+	}
+	chain.Next(ctx, cb)
+}
+
+func (h *BraceHandler) HookRoute() []regexp.Regexp {
+	return make([]regexp.Regexp, 0)
+}
+
+func (h *BraceHandler) Name() string {
+	return BraceHandlerName
+}
+
+func (h *BraceHandler) Type() GrammarType {
+	return GrammarBRACE
+}
+
+type SubHandler struct {
+}
+
+func (h *SubHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
+	//_ := ctx.SymbolStack.Top()
+	ctx.SymbolStack.Pop()
+	chain.Next(ctx, cb)
+}
+
+func (h *SubHandler) HookRoute() []regexp.Regexp {
+	return make([]regexp.Regexp, 0)
+}
+
+func (h *SubHandler) Name() string {
+	return SubHandlerName
+}
+
+func (h *SubHandler) Type() GrammarType {
+	return GrammarSUB
 }

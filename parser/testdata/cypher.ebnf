@@ -1,4 +1,4 @@
-Cypher = [SP], Statement, [[SP], ';'], [SP], EOI ;
+Cypher = [SP], Statement, [[SP], ';'], [SP] ;
 
 Statement = Query ;
 
@@ -398,55 +398,17 @@ SymbolicName = UnescapedSymbolicName
 
 UnescapedSymbolicName = IdentifierStart, { IdentifierPart } ;
 
-(* Based on the unicode identifier and pattern syntax
- *   (http://www.unicode.org/reports/tr31/)
- * And extended with a few characters.
- *)IdentifierStart = ID_Start
-                | Pc
+IdentifierStart = "i"
                 ;
 
-(* Based on the unicode identifier and pattern syntax
- *   (http://www.unicode.org/reports/tr31/)
- * And extended with a few characters.
- *)IdentifierPart = ID_Continue
-               | Sc
+IdentifierPart = 'part'
                ;
 
-(* Any character except "`", enclosed within `backticks`. Backticks are escaped with double backticks.
- *)EscapedSymbolicName = { '`', { ANY - ('`') }, '`' }- ;
+EscapedSymbolicName = { '`', { ANY-('`') }, '`' }- ;
 
 SP = { whitespace }- ;
 
-whitespace = SPACE
-           | TAB
-           | LF
-           | VT
-           | FF
-           | CR
-           | FS
-           | GS
-           | RS
-           | US
-           | ' '
-           | '᠎'
-           | ' '
-           | ' '
-           | ' '
-           | ' '
-           | ' '
-           | ' '
-           | ' '
-           | ' '
-           | ' '
-           | ' '
-           | ' '
-           | ' '
-           | ' '
-           | '　'
-           | ' '
-           | ' '
-           | ' '
-           | Comment
+whitespace = ' '
            ;
 
 Comment = ('/*', { ANY - ('*') | ('*', ANY - ('/')) }, '*/')
@@ -454,78 +416,60 @@ Comment = ('/*', { ANY - ('*') | ('*', ANY - ('/')) }, '*/')
         ;
 
 LeftArrowHead = '<'
-              | '⟨'
-              | '〈'
-              | '﹤'
-              | '＜'
               ;
 
 RightArrowHead = '>'
-               | '⟩'
-               | '〉'
-               | '﹥'
-               | '＞'
                ;
 
 Dash = '-'
-     | '­'
-     | '‐'
-     | '‑'
-     | '‒'
-     | '–'
-     | '—'
-     | '―'
-     | '−'
-     | '﹘'
-     | '﹣'
-     | '－'
      ;
 
-A = 'A' | 'a' ;
+A = 'A'  ;
 
-B = 'B' | 'b' ;
+B = 'B'  ;
 
-C = 'C' | 'c' ;
+C = 'C'  ;
 
-D = 'D' | 'd' ;
+D = 'D'  ;
 
-E = 'E' | 'e' ;
+E = 'E' ;
 
-F = 'F' | 'f' ;
+F = 'F'  ;
 
-G = 'G' | 'g' ;
+G = 'G' ;
 
-H = 'H' | 'h' ;
+H = 'H'  ;
 
-I = 'I' | 'i' ;
+I = 'I' ;
 
-K = 'K' | 'k' ;
+K = 'K' ;
 
-L = 'L' | 'l' ;
+L = 'L'  ;
 
-M = 'M' | 'm' ;
+M = 'M' ;
 
-N = 'N' | 'n' ;
+N = 'N'  ;
 
-O = 'O' | 'o' ;
+O = 'O' ;
 
-P = 'P' | 'p' ;
+P = 'P'  ;
 
-Q = 'Q' | 'q' ;
+Q = 'Q' ;
 
-R = 'R' | 'r' ;
+R = 'R' ;
 
-S = 'S' | 's' ;
+S = 'S'  ;
 
-T = 'T' | 't' ;
+T = 'T' ;
 
-U = 'U' | 'u' ;
+U = 'U'  ;
 
-V = 'V' | 'v' ;
+V = 'V' ;
 
-W = 'W' | 'w' ;
+W = 'W' ;
 
-X = 'X' | 'x' ;
+X = 'X' ;
 
-Y = 'Y' | 'y' ;
+Y = 'Y'  ;
 
+ANY = "testany"

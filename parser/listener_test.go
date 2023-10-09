@@ -5,15 +5,20 @@ import (
 	"testing"
 )
 
-func TestParse(t *testing.T) {
+func TestParseCalculator(t *testing.T) {
 	productions, _ := Parse("./testdata/simple.ebnf")
 	for _, g := range productions {
 		fmt.Printf("%+v\n", g)
 	}
+	root := MergeProduction(productions, "expression")
+	root.Visualize(fmt.Sprintf("figures/root.gv"), true)
 }
-func TestParse1(t *testing.T) {
+
+func TestParseCypher(t *testing.T) {
 	productions, _ := Parse("./testdata/cypher.ebnf")
 	for _, g := range productions {
 		fmt.Printf("%+v\n", g)
 	}
+	root := MergeProduction(productions, "Cypher")
+	root.Visualize(fmt.Sprintf("figures/root.gv"), true)
 }
