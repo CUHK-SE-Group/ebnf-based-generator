@@ -2,8 +2,8 @@ package Generator
 
 import (
 	"fmt"
-	"github.com/CUHK-SE-Group/ebnf-based-generator/parser"
-	"github.com/CUHK-SE-Group/ebnf-based-generator/schemas"
+	"github.com/CUHK-SE-Group/generic-generator/parser"
+	"github.com/CUHK-SE-Group/generic-generator/schemas"
 	"math/rand"
 	"regexp"
 	"strings"

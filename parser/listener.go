@@ -1,9 +1,9 @@
 package parser
 
 import (
-	"github.com/CUHK-SE-Group/ebnf-based-generator/log"
-	"github.com/CUHK-SE-Group/ebnf-based-generator/parser/ebnf"
-	"github.com/CUHK-SE-Group/ebnf-based-generator/schemas"
+	"github.com/CUHK-SE-Group/generic-generator/log"
+	"github.com/CUHK-SE-Group/generic-generator/parser/ebnf"
+	"github.com/CUHK-SE-Group/generic-generator/schemas"
 	"github.com/antlr4-go/antlr/v4"
 	"log/slog"
 	"os"
