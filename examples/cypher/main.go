@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/CUHK-SE-Group/ebnf-based-generator/schemas"
+	"github.com/CUHK-SE-Group/generic-generator/schemas"
 	"log"
 	"math/rand"
 	"os"
