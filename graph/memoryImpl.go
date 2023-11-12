@@ -11,7 +11,7 @@ const (
 type MemGraph struct {
 	edgeMap   map[string]Edge[string]
 	vertexMap map[string]Vertex[string]
-	metadata  map[Metadata]bool
+	metadata  map[Metadata]any
 
 	// index
 	vertex2OutEdges map[string][]Edge[string]
@@ -38,7 +38,7 @@ func NewGraph() Graph[string] {
 		vertex2OutEdges: make(map[string][]Edge[string]),
 		vertex2InEdges:  make(map[string][]Edge[string]),
 		dirty:           false,
-		metadata:        make(map[Metadata]bool),
+		metadata:        make(map[Metadata]any),
 	}
 }
 
@@ -64,7 +64,7 @@ func (g *MemGraph) updateIndex() {
 		return ok
 	}
 	if g.dirty {
-		if g.metadata[CleanVertexByEdge] && len(g.edgeMap) == 0 {
+		if g.metadata[CleanVertexByEdge].(bool) && len(g.edgeMap) == 0 {
 			g.vertexMap = make(map[string]Vertex[string])
 		}
 		g.vertex2OutEdges = make(map[string][]Edge[string])
@@ -79,7 +79,7 @@ func (g *MemGraph) updateIndex() {
 			g.vertex2InEdges[e.GetTo().GetID()] = append(g.vertex2InEdges[e.GetTo().GetID()], e)
 			g.vertex2OutEdges[e.GetFrom().GetID()] = append(g.vertex2OutEdges[e.GetFrom().GetID()], e)
 
-			if g.metadata[CleanVertexByEdge] {
+			if g.metadata[CleanVertexByEdge].(bool) {
 				// clean single vertex
 				if !in(g.vertex2InEdges, e.GetFrom().GetID()) && !in(g.vertex2OutEdges, e.GetFrom().GetID()) {
 					delete(g.vertexMap, e.GetFrom().GetID())
@@ -94,14 +94,14 @@ func (g *MemGraph) updateIndex() {
 	}
 }
 
-func (g *MemGraph) SetMetadata(key Metadata, val bool) {
+func (g *MemGraph) SetMetadata(key Metadata, val any) {
 	g.metadata[key] = val
 }
-func (g *MemGraph) GetMetadata(key Metadata) bool {
+func (g *MemGraph) GetMetadata(key Metadata) any {
 	return g.metadata[key]
 }
 
-func (g *MemGraph) GetAllMetadata() map[Metadata]bool {
+func (g *MemGraph) GetAllMetadata() map[Metadata]any {
 	return g.metadata
 }
 

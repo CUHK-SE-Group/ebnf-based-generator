@@ -226,13 +226,13 @@ func TestGraph(t *testing.T) {
 				g.SetMetadata("sorted", true)
 			},
 			test: func(g Graph[string]) {
-				sorted := g.GetMetadata("sorted")
+				sorted := g.GetMetadata("sorted").(bool)
 				if !sorted {
 					t.Errorf("expected metadata sorted to be true, got false")
 				}
 			},
 			expected: func(g Graph[string]) bool {
-				return g.GetMetadata("sorted")
+				return g.GetMetadata("sorted").(bool)
 			},
 		},
 		{

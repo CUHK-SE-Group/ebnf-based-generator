@@ -13,9 +13,9 @@ type Graph[T any] interface {
 	GetInEdges(vertex Vertex[T]) []Edge[T]
 	GetAllVertices() []Vertex[T]
 	GetAllEdges() []Edge[T]
-	SetMetadata(key Metadata, val bool)
-	GetMetadata(key Metadata) bool
-	GetAllMetadata() map[Metadata]bool
+	SetMetadata(key Metadata, val any)
+	GetMetadata(key Metadata) any
+	GetAllMetadata() map[Metadata]any
 	GetVertexById(id string) Vertex[T]
 	GetEdgeById(id string) Edge[T]
 }
