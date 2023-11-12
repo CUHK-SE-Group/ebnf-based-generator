@@ -1,10 +1,9 @@
 package schemas
 
 import (
-	"github.com/dominikbraun/graph"
-	"github.com/dominikbraun/graph/draw"
-	"github.com/golang/glog"
-	"os"
+	"github.com/CUHK-SE-Group/generic-generator/graph"
+	A "github.com/IBM/fp-go/array"
+	"github.com/google/uuid"
 )
 
 type GrammarType int
@@ -25,97 +24,116 @@ const (
 	GrammarTerminal
 )
 
+type property struct {
+	Type    GrammarType
+	Root    *Node
+	Gram    *Grammar
+	Content string
+}
+
+const (
+	prop = "property"
+)
+
 type Grammar struct {
-	id      string
-	gtype   GrammarType
-	symbols *[]*Grammar
-
-	content string
-	root    *Grammar
-	config  *Config
+	internal graph.Graph[property]
 }
 
-func NewGrammar(t GrammarType, id string, content string, conf *Config) *Grammar {
+func NewGrammar() *Grammar {
 	newG := &Grammar{
-		id:      id,
-		gtype:   t,
-		symbols: &[]*Grammar{},
-		content: content,
-		config:  conf,
+		internal: graph.NewGraph[property](),
 	}
-	return newG.SetRoot(newG)
+	return newG
 }
 
-func (g *Grammar) GetID() string {
-	return g.id
-}
-func (g *Grammar) GetType() GrammarType {
-	return g.gtype
+type Node struct {
+	internal graph.Vertex[property]
 }
 
-func (g *Grammar) SetRoot(root *Grammar) *Grammar {
-	g.root = root
-	return g
+func newEdge(id string, from, to *Node) graph.Edge[property] {
+	res := graph.NewEdge[property]()
+	res.SetID(id)
+	res.SetFrom(from.internal)
+	res.SetTo(to.internal)
+	return res
 }
 
-func (g *Grammar) GetRoot() *Grammar {
-	return g.root
+func NewNode(g *Grammar, tp GrammarType) *Node {
+	n := graph.NewVertex[property]()
+	n.SetProperty(prop, property{
+		Type:    tp,
+		Root:    nil,
+		Gram:    g,
+		Content: "",
+	})
+	return &Node{internal: n}
 }
 
-func (g *Grammar) AddSymbol(new *Grammar) int {
-	if new.gtype != GrammarProduction {
-		new.root = g.root
+func (g *Node) GetType() GrammarType {
+	return g.internal.GetProperty(prop).Type
+}
+
+func (g *Node) SetRoot(r *Node) {
+	ori := g.internal.GetProperty(prop)
+	ori.Root = r
+	g.internal.SetProperty(prop, ori)
+}
+
+func (g *Node) GetRoot() *Node {
+	return g.internal.GetProperty(prop).Root
+}
+
+func (g *Node) GetGrammar() *Grammar {
+	return g.internal.GetProperty(prop).Gram
+}
+
+func (g *Node) AddSymbol(new *Node) int {
+	e := newEdge(uuid.NewString(), g, new)
+	g.GetGrammar().internal.AddEdge(e)
+	return len(g.GetGrammar().internal.GetOutEdges(g.internal)) - 1
+}
+
+func (g *Node) GetSymbols() []*Node {
+	f := func(edge graph.Edge[property]) *Node {
+		return &Node{internal: edge.GetTo()}
 	}
-	*g.symbols = append(*g.symbols, new)
-	return len(*g.symbols) - 1
+	return A.Map(f)(g.GetGrammar().internal.GetOutEdges(g.internal))
 }
 
-func (g *Grammar) GetSymbols() *[]*Grammar {
-	return g.symbols
-}
-
-func (g *Grammar) GetSymbol(idx int) *Grammar {
-	if idx < len(*g.symbols) {
-		return (*g.symbols)[idx]
+func (g *Node) GetSymbol(idx int) *Node {
+	syms := g.GetSymbols()
+	if idx < len(syms) {
+		return (syms)[idx]
 	}
 	return nil
 }
 
-func (g *Grammar) SetSymbol(idx int, sym *Grammar) *Grammar {
-	if idx < len(*g.symbols) {
-		(*g.symbols)[idx] = sym
-	} else {
-		glog.Fatal("idx out of range")
-	}
-	return g
-}
-
-func (g *Grammar) GetContent() string {
-	return g.content
+func (g *Node) GetContent() string {
+	return g.internal.GetProperty(prop).Content
 }
 
 func (g *Grammar) Visualize(filename string, expandSub bool) {
-	ghash := func(gram *Grammar) string { return gram.content }
-	gr := graph.New(ghash, graph.Directed(), graph.Rooted())
-	_ = gr.AddVertex(g)
-
-	queue := make([]*Grammar, 0)
-	queue = append(queue, g)
-	visited := make(map[string]bool, 0)
-	for len(queue) != 0 {
-		cur := queue[0]
-		queue = queue[1:]
-		visited[cur.id] = true
-		for _, v := range *cur.GetSymbols() {
-			_ = gr.AddVertex(v)
-			_ = gr.AddEdge(cur.content, v.content)
-			if visited[v.id] {
-				continue
-			}
-			queue = append(queue, v)
-		}
-	}
-
-	file, _ := os.Create(filename)
-	_ = draw.DOT(gr, file)
+	//ghash := func(gram *Grammar) string { return gram.content }
+	//gr := graph.New(ghash, graph.Directed(), graph.Rooted())
+	//_ = gr.AddVertex(g)
+	//
+	//queue := make([]*Grammar, 0)
+	//queue = append(queue, g)
+	//visited := make(map[string]bool, 0)
+	//for len(queue) != 0 {
+	//	cur := queue[0]
+	//	queue = queue[1:]
+	//	visited[cur.id] = true
+	//	for _, v := range *cur.GetSymbols() {
+	//		_ = gr.AddVertex(v)
+	//		_ = gr.AddEdge(cur.content, v.content)
+	//		if visited[v.id] {
+	//			continue
+	//		}
+	//		queue = append(queue, v)
+	//	}
+	//}
+	//
+	//file, _ := os.Create(filename)
+	//_ = draw.DOT(gr, file)
 }

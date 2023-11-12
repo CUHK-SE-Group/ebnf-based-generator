@@ -45,16 +45,16 @@ func TestNewGraph(t *testing.T) {
 	var g Graph[string]
 	vertices := make(map[string]Vertex[string])
 	edges := make(map[string]Edge[string])
-	g = NewGraph()
+	g = NewGraph[string]()
 	for i := 0; i < 10; i++ {
-		e := NewEdge()
+		e := NewEdge[string]()
 		e.SetID(fmt.Sprintf("edge%d", i))
 
-		from := NewVertex()
+		from := NewVertex[string]()
 		from.SetID(fmt.Sprintf("vertex%d", rand.Intn(10)))
 		e.SetFrom(from)
 
-		to := NewVertex()
+		to := NewVertex[string]()
 		to.SetID(fmt.Sprintf("vertex%d", rand.Intn(10)))
 		e.SetTo(to)
 
@@ -76,9 +76,9 @@ func TestNewGraph(t *testing.T) {
 		}
 	}
 	validate(g)
-	newG := Clone(g, NewGraph, NewEdge, NewVertex)
+	newG := Clone(g, NewGraph[string], NewEdge[string], NewVertex[string])
 	validate(newG)
-
+	Visualize(g, "./file.dot", nil, nil)
 }
 
 type GraphTestCase[T any] struct {
@@ -93,7 +93,7 @@ func TestGraph(t *testing.T) {
 		{
 			name: "Add and Get Vertex",
 			setup: func(g Graph[string]) {
-				v := NewVertex()
+				v := NewVertex[string]()
 				v.SetID("v1")
 				g.AddVertex(v)
 			},
@@ -110,13 +110,13 @@ func TestGraph(t *testing.T) {
 		{
 			name: "Add and Get Edge",
 			setup: func(g Graph[string]) {
-				v1 := NewVertex()
+				v1 := NewVertex[string]()
 				v1.SetID("v1")
-				v2 := NewVertex()
+				v2 := NewVertex[string]()
 				v2.SetID("v2")
 				g.AddVertex(v1)
 				g.AddVertex(v2)
-				e := NewEdge()
+				e := NewEdge[string]()
 				e.SetID("e1")
 				e.SetFrom(v1)
 				e.SetTo(v2)
@@ -135,12 +135,12 @@ func TestGraph(t *testing.T) {
 		{
 			name: "Delete Vertex",
 			setup: func(g Graph[string]) {
-				v := NewVertex()
+				v := NewVertex[string]()
 				v.SetID("v1")
 				g.AddVertex(v)
 			},
 			test: func(g Graph[string]) {
-				v := NewVertex()
+				v := NewVertex[string]()
 				v.SetID("v1")
 				g.DeleteVertex(v)
 			},
@@ -151,20 +151,20 @@ func TestGraph(t *testing.T) {
 		{
 			name: "Delete Edge",
 			setup: func(g Graph[string]) {
-				v1 := NewVertex()
+				v1 := NewVertex[string]()
 				v1.SetID("v1")
-				v2 := NewVertex()
+				v2 := NewVertex[string]()
 				v2.SetID("v2")
 				g.AddVertex(v1)
 				g.AddVertex(v2)
-				e := NewEdge()
+				e := NewEdge[string]()
 				e.SetID("e1")
 				e.SetFrom(v1)
 				e.SetTo(v2)
 				g.AddEdge(e)
 			},
 			test: func(g Graph[string]) {
-				e := NewEdge()
+				e := NewEdge[string]()
 				e.SetID("e1")
 				g.DeleteEdge(e)
 			},
@@ -175,33 +175,34 @@ func TestGraph(t *testing.T) {
 		{
 			name: "Set and Get Vertex Property",
 			setup: func(g Graph[string]) {
-				v := NewVertex()
+				v := NewVertex[string]()
 				v.SetID("v1")
 				v.SetProperty("color", "blue")
 				g.AddVertex(v)
 			},
 			test: func(g Graph[string]) {
 				v := g.GetVertexById("v1")
-				color := v.GetProperty("color")
+				color, _ := v.GetProperty("color")
 				if color != "blue" {
 					t.Errorf("expected vertex property color to be 'blue', got '%s'", color)
 				}
 			},
 			expected: func(g Graph[string]) bool {
 				v := g.GetVertexById("v1")
-				return v.GetProperty("color") == "blue"
+				p, _ := v.GetProperty("color")
+				return p == "blue"
 			},
 		},
 		{
 			name: "Set and Get Edge Property",
 			setup: func(g Graph[string]) {
-				v1 := NewVertex()
+				v1 := NewVertex[string]()
 				v1.SetID("v1")
-				v2 := NewVertex()
+				v2 := NewVertex[string]()
 				v2.SetID("v2")
 				g.AddVertex(v1)
 				g.AddVertex(v2)
-				e := NewEdge()
+				e := NewEdge[string]()
 				e.SetID("e1")
 				e.SetFrom(v1)
 				e.SetTo(v2)
@@ -210,14 +211,15 @@ func TestGraph(t *testing.T) {
 			},
 			test: func(g Graph[string]) {
 				e := g.GetEdgeById("e1")
-				weight := e.GetProperty("weight")
+				weight, _ := e.GetProperty("weight")
 				if weight != "10" {
 					t.Errorf("expected edge property weight to be '10', got '%s'", weight)
 				}
 			},
 			expected: func(g Graph[string]) bool {
 				e := g.GetEdgeById("e1")
-				return e.GetProperty("weight") == "10"
+				p, _ := e.GetProperty("weight")
+				return p == "10"
 			},
 		},
 		{
@@ -239,20 +241,20 @@ func TestGraph(t *testing.T) {
 			name: "Auto-delete Vertex When No Edges Remain",
 			setup: func(g Graph[string]) {
 				g.SetMetadata(CleanVertexByEdge, true)
-				v := NewVertex()
+				v := NewVertex[string]()
 				v.SetID("v1")
 				g.AddVertex(v)
 
-				v2 := NewVertex()
+				v2 := NewVertex[string]()
 				v2.SetID("v2")
-				e := NewEdge()
+				e := NewEdge[string]()
 				e.SetID("e1")
 				e.SetFrom(v)
 				e.SetTo(v2)
 				g.AddEdge(e)
 			},
 			test: func(g Graph[string]) {
-				e := NewEdge()
+				e := NewEdge[string]()
 				e.SetID("e1")
 				g.DeleteEdge(e)
 			},
@@ -270,7 +272,7 @@ func TestGraph(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			g := NewGraph()
+			g := NewGraph[string]()
 			tc.setup(g)          // 设置测试环境
 			tc.test(g)           // 执行测试
 			if !tc.expected(g) { // 验证结果

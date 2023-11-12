@@ -1,43 +1,48 @@
 package graph
 
-import "fmt"
+import (
+	"fmt"
+	"github.com/dominikbraun/graph/draw"
+	"os"
+)
+import g "github.com/dominikbraun/graph"
 
 type Metadata string
 
-type Graph[T any] interface {
-	AddEdge(edge Edge[T])
-	AddVertex(vertex Vertex[T])
-	DeleteEdge(edge Edge[T])
-	DeleteVertex(vertex Vertex[T])
-	GetOutEdges(vertex Vertex[T]) []Edge[T]
-	GetInEdges(vertex Vertex[T]) []Edge[T]
-	GetAllVertices() []Vertex[T]
-	GetAllEdges() []Edge[T]
+type Graph[PropertyType any] interface {
+	AddEdge(edge Edge[PropertyType])
+	AddVertex(vertex Vertex[PropertyType])
+	DeleteEdge(edge Edge[PropertyType])
+	DeleteVertex(vertex Vertex[PropertyType])
+	GetOutEdges(vertex Vertex[PropertyType]) []Edge[PropertyType]
+	GetInEdges(vertex Vertex[PropertyType]) []Edge[PropertyType]
+	GetAllVertices() []Vertex[PropertyType]
+	GetAllEdges() []Edge[PropertyType]
 	SetMetadata(key Metadata, val any)
 	GetMetadata(key Metadata) any
 	GetAllMetadata() map[Metadata]any
-	GetVertexById(id string) Vertex[T]
-	GetEdgeById(id string) Edge[T]
+	GetVertexById(id string) Vertex[PropertyType]
+	GetEdgeById(id string) Edge[PropertyType]
 }
 
-type Edge[T any] interface {
+type Edge[PropertyType any] interface {
 	SetID(id string)
-	SetFrom(vertex Vertex[T])
-	SetTo(vertex Vertex[T])
-	SetProperty(key string, val T)
+	SetFrom(vertex Vertex[PropertyType])
+	SetTo(vertex Vertex[PropertyType])
+	SetProperty(key string, val PropertyType)
 	GetID() string
-	GetFrom() Vertex[T]
-	GetTo() Vertex[T]
-	GetProperty(key string) T
-	GetAllProperties() map[string]T
+	GetFrom() Vertex[PropertyType]
+	GetTo() Vertex[PropertyType]
+	GetProperty(key string) PropertyType
+	GetAllProperties() map[string]PropertyType
 }
 
-type Vertex[T any] interface {
+type Vertex[PropertyType any] interface {
 	SetID(id string)
-	SetProperty(key string, val T)
+	SetProperty(key string, val PropertyType)
 	GetID() string
-	GetProperty(key string) T
-	GetAllProperties() map[string]T
+	GetProperty(key string) PropertyType
+	GetAllProperties() map[string]PropertyType
 }
 
 type GraphSafe[T any] interface {
@@ -114,4 +119,26 @@ func Clone[T any](graph Graph[T], newGraph func() Graph[T], newEdge func() Edge[
 
 	// Return the cloned graph
 	return clonedGraph
+}
+
+func Visualize[T any](graph Graph[T], filename string, vertexInfo func(vertex Vertex[T]) string, edgeInfo func(edge Edge[T]) (string, string)) {
+	if vertexInfo == nil {
+		vertexInfo = func(vertex Vertex[T]) string {
+			return vertex.GetID()
+		}
+	}
+	if edgeInfo == nil {
+		edgeInfo = func(edge Edge[T]) (string, string) {
+			return edge.GetFrom().GetID(), edge.GetTo().GetID()
+		}
+	}
+	vis := g.New(g.StringHash, g.Directed())
+	for _, v := range graph.GetAllVertices() {
+		_ = vis.AddVertex(vertexInfo(v))
+	}
+	for _, v := range graph.GetAllEdges() {
+		_ = vis.AddEdge(edgeInfo(v))
+	}
+	file, _ := os.Create(filename)
+	_ = draw.DOT(vis, file)
 }

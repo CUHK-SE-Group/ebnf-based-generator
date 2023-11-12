@@ -8,73 +8,75 @@ const (
 	CleanVertexByEdge Metadata = "cleanVertexWhenNoEdge"
 )
 
-type MemGraph struct {
-	edgeMap   map[string]Edge[string]
-	vertexMap map[string]Vertex[string]
+type MemGraph[PropertyType any] struct {
+	edgeMap   map[string]Edge[PropertyType]
+	vertexMap map[string]Vertex[PropertyType]
 	metadata  map[Metadata]any
 
 	// index
-	vertex2OutEdges map[string][]Edge[string]
-	vertex2InEdges  map[string][]Edge[string]
+	vertex2OutEdges map[string][]Edge[PropertyType]
+	vertex2InEdges  map[string][]Edge[PropertyType]
 	dirty           bool
 }
 
-type VertexImpl struct {
+type VertexImpl[PropertyType any] struct {
 	id          string
-	propertyMap map[string]string
+	propertyMap map[string]PropertyType
 }
 
-type EdgeImpl struct {
+type EdgeImpl[PropertyType any] struct {
 	id          string
-	from        Vertex[string]
-	to          Vertex[string]
-	propertyMap map[string]string
+	from        Vertex[PropertyType]
+	to          Vertex[PropertyType]
+	propertyMap map[string]PropertyType
 }
 
-func NewGraph() Graph[string] {
-	return &MemGraph{
-		edgeMap:         make(map[string]Edge[string]),
-		vertexMap:       make(map[string]Vertex[string]),
-		vertex2OutEdges: make(map[string][]Edge[string]),
-		vertex2InEdges:  make(map[string][]Edge[string]),
+func NewGraph[PropertyType any]() Graph[PropertyType] {
+	m := &MemGraph[PropertyType]{
+		edgeMap:         make(map[string]Edge[PropertyType]),
+		vertexMap:       make(map[string]Vertex[PropertyType]),
+		vertex2OutEdges: make(map[string][]Edge[PropertyType]),
+		vertex2InEdges:  make(map[string][]Edge[PropertyType]),
 		dirty:           false,
 		metadata:        make(map[Metadata]any),
 	}
+	m.SetMetadata(CleanVertexByEdge, false)
+	return m
 }
 
-func NewVertex() Vertex[string] {
-	return &VertexImpl{
+func NewVertex[PropertyType any]() Vertex[PropertyType] {
+	return &VertexImpl[PropertyType]{
 		id:          "",
-		propertyMap: make(map[string]string),
+		propertyMap: make(map[string]PropertyType),
 	}
 }
 
-func NewEdge() Edge[string] {
-	return &EdgeImpl{
+func NewEdge[PropertyType any]() Edge[PropertyType] {
+	return &EdgeImpl[PropertyType]{
 		id:          "",
 		from:        nil,
 		to:          nil,
-		propertyMap: make(map[string]string),
+		propertyMap: make(map[string]PropertyType),
 	}
 }
 
-func (g *MemGraph) updateIndex() {
-	in := func(m map[string][]Edge[string], key string) bool {
+func (g *MemGraph[PropertyType]) updateIndex() {
+	in := func(m map[string][]Edge[PropertyType], key string) bool {
 		_, ok := m[key]
 		return ok
 	}
 	if g.dirty {
 		if g.metadata[CleanVertexByEdge].(bool) && len(g.edgeMap) == 0 {
-			g.vertexMap = make(map[string]Vertex[string])
+			g.vertexMap = make(map[string]Vertex[PropertyType])
 		}
-		g.vertex2OutEdges = make(map[string][]Edge[string])
-		g.vertex2InEdges = make(map[string][]Edge[string])
+		g.vertex2OutEdges = make(map[string][]Edge[PropertyType])
+		g.vertex2InEdges = make(map[string][]Edge[PropertyType])
 		for _, e := range g.edgeMap {
 			if _, ok := g.vertex2InEdges[e.GetTo().GetID()]; !ok {
-				g.vertex2InEdges[e.GetTo().GetID()] = make([]Edge[string], 0)
+				g.vertex2InEdges[e.GetTo().GetID()] = make([]Edge[PropertyType], 0)
 			}
 			if _, ok := g.vertex2OutEdges[e.GetFrom().GetID()]; !ok {
-				g.vertex2OutEdges[e.GetFrom().GetID()] = make([]Edge[string], 0)
+				g.vertex2OutEdges[e.GetFrom().GetID()] = make([]Edge[PropertyType], 0)
 			}
 			g.vertex2InEdges[e.GetTo().GetID()] = append(g.vertex2InEdges[e.GetTo().GetID()], e)
 			g.vertex2OutEdges[e.GetFrom().GetID()] = append(g.vertex2OutEdges[e.GetFrom().GetID()], e)
@@ -94,24 +96,24 @@ func (g *MemGraph) updateIndex() {
 	}
 }
 
-func (g *MemGraph) SetMetadata(key Metadata, val any) {
+func (g *MemGraph[PropertyType]) SetMetadata(key Metadata, val any) {
 	g.metadata[key] = val
 }
-func (g *MemGraph) GetMetadata(key Metadata) any {
+func (g *MemGraph[PropertyType]) GetMetadata(key Metadata) any {
 	return g.metadata[key]
 }
 
-func (g *MemGraph) GetAllMetadata() map[Metadata]any {
+func (g *MemGraph[PropertyType]) GetAllMetadata() map[Metadata]any {
 	return g.metadata
 }
 
-func (g *MemGraph) GetVertexById(id string) Vertex[string] {
+func (g *MemGraph[PropertyType]) GetVertexById(id string) Vertex[PropertyType] {
 	return g.vertexMap[id]
 }
-func (g *MemGraph) GetEdgeById(id string) Edge[string] {
+func (g *MemGraph[PropertyType]) GetEdgeById(id string) Edge[PropertyType] {
 	return g.edgeMap[id]
 }
-func (g *MemGraph) AddEdge(edge Edge[string]) {
+func (g *MemGraph[PropertyType]) AddEdge(edge Edge[PropertyType]) {
 	if _, ok := g.edgeMap[edge.GetID()]; ok {
 		slog.Warn("edge already exists", "id", edge.GetID())
 	}
@@ -125,7 +127,7 @@ func (g *MemGraph) AddEdge(edge Edge[string]) {
 	g.dirty = true
 }
 
-func (g *MemGraph) AddVertex(vertex Vertex[string]) {
+func (g *MemGraph[PropertyType]) AddVertex(vertex Vertex[PropertyType]) {
 	if _, ok := g.vertexMap[vertex.GetID()]; ok {
 		slog.Warn("vertex already exists", "id", vertex.GetID())
 	}
@@ -133,7 +135,7 @@ func (g *MemGraph) AddVertex(vertex Vertex[string]) {
 	g.dirty = true
 }
 
-func (g *MemGraph) DeleteEdge(edge Edge[string]) {
+func (g *MemGraph[PropertyType]) DeleteEdge(edge Edge[PropertyType]) {
 	if _, ok := g.edgeMap[edge.GetID()]; ok {
 		delete(g.edgeMap, edge.GetID())
 	}
@@ -141,7 +143,7 @@ func (g *MemGraph) DeleteEdge(edge Edge[string]) {
 	g.dirty = true
 }
 
-func (g *MemGraph) DeleteVertex(vertex Vertex[string]) {
+func (g *MemGraph[PropertyType]) DeleteVertex(vertex Vertex[PropertyType]) {
 	if _, ok := g.vertexMap[vertex.GetID()]; ok {
 		delete(g.vertexMap, vertex.GetID())
 	}
@@ -149,92 +151,88 @@ func (g *MemGraph) DeleteVertex(vertex Vertex[string]) {
 	g.dirty = true
 }
 
-func (g *MemGraph) GetOutEdges(vertex Vertex[string]) []Edge[string] {
+func (g *MemGraph[PropertyType]) GetOutEdges(vertex Vertex[PropertyType]) []Edge[PropertyType] {
 	g.updateIndex()
 	return g.vertex2OutEdges[vertex.GetID()]
 }
 
-func (g *MemGraph) GetInEdges(vertex Vertex[string]) []Edge[string] {
+func (g *MemGraph[PropertyType]) GetInEdges(vertex Vertex[PropertyType]) []Edge[PropertyType] {
 	g.updateIndex()
 	return g.vertex2InEdges[vertex.GetID()]
 }
 
-func (g *MemGraph) GetAllVertices() []Vertex[string] {
+func (g *MemGraph[PropertyType]) GetAllVertices() []Vertex[PropertyType] {
 	g.updateIndex()
-	var all []Vertex[string]
+	var all []Vertex[PropertyType]
 	for _, v := range g.vertexMap {
 		all = append(all, v)
 	}
 	return all
 }
 
-func (g *MemGraph) GetAllEdges() []Edge[string] {
+func (g *MemGraph[PropertyType]) GetAllEdges() []Edge[PropertyType] {
 	g.updateIndex()
-	var all []Edge[string]
+	var all []Edge[PropertyType]
 	for _, e := range g.edgeMap {
 		all = append(all, e)
 	}
 	return all
 }
 
-func (n *VertexImpl) SetID(id string) {
+func (n *VertexImpl[PropertyType]) SetID(id string) {
 	n.id = id
 }
 
-func (n *VertexImpl) SetProperty(key string, val string) {
+func (n *VertexImpl[PropertyType]) SetProperty(key string, val PropertyType) {
 	n.propertyMap[key] = val
 }
 
-func (n *VertexImpl) GetID() string {
+func (n *VertexImpl[PropertyType]) GetID() string {
 	return n.id
 }
 
-func (n *VertexImpl) GetProperty(key string) string {
-	if _, ok := n.propertyMap[key]; ok {
-		return n.propertyMap[key]
-	}
-	return ""
+func (n *VertexImpl[PropertyType]) GetProperty(key string) PropertyType {
+	val, _ := n.propertyMap[key]
+	return val
 }
 
-func (n *VertexImpl) GetAllProperties() map[string]string {
+func (n *VertexImpl[PropertyType]) GetAllProperties() map[string]PropertyType {
 	return n.propertyMap
 }
 
-func (e *EdgeImpl) SetID(id string) {
+func (e *EdgeImpl[PropertyType]) SetID(id string) {
 	e.id = id
 }
 
-func (e *EdgeImpl) SetFrom(vertex Vertex[string]) {
+func (e *EdgeImpl[PropertyType]) SetFrom(vertex Vertex[PropertyType]) {
 	e.from = vertex
 }
 
-func (e *EdgeImpl) SetTo(vertex Vertex[string]) {
+func (e *EdgeImpl[PropertyType]) SetTo(vertex Vertex[PropertyType]) {
 	e.to = vertex
 }
 
-func (e *EdgeImpl) SetProperty(key string, val string) {
+func (e *EdgeImpl[PropertyType]) SetProperty(key string, val PropertyType) {
 	e.propertyMap[key] = val
 }
 
-func (e *EdgeImpl) GetID() string {
+func (e *EdgeImpl[PropertyType]) GetID() string {
 	return e.id
 }
 
-func (e *EdgeImpl) GetFrom() Vertex[string] {
+func (e *EdgeImpl[PropertyType]) GetFrom() Vertex[PropertyType] {
 	return e.from
 }
 
-func (e *EdgeImpl) GetTo() Vertex[string] {
+func (e *EdgeImpl[PropertyType]) GetTo() Vertex[PropertyType] {
 	return e.to
 }
 
-func (e *EdgeImpl) GetProperty(key string) string {
-	if _, ok := e.propertyMap[key]; ok {
-		return e.propertyMap[key]
-	}
-	return ""
+func (e *EdgeImpl[PropertyType]) GetProperty(key string) PropertyType {
+	val, _ := e.propertyMap[key]
+	return val
 }
 
-func (e *EdgeImpl) GetAllProperties() map[string]string {
+func (e *EdgeImpl[PropertyType]) GetAllProperties() map[string]PropertyType {
 	return e.propertyMap
 }
