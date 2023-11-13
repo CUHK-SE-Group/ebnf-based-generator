@@ -6,11 +6,11 @@ import (
 )
 
 type Stack struct {
-	q     []*Grammar
-	trace []*Grammar
+	q     []*Node
+	trace []*Node
 }
 
-func (q *Stack) Push(g *Grammar) *Stack {
+func (q *Stack) Push(g *Node) *Stack {
 	if g == nil {
 		panic(g)
 	}
@@ -23,7 +23,7 @@ func (q *Stack) Pop() *Stack {
 	q.q = q.q[:len(q.q)-1]
 	return q
 }
-func (q *Stack) Top() *Grammar {
+func (q *Stack) Top() *Node {
 	if len(q.q) > 0 {
 		return q.q[len(q.q)-1]
 	}
@@ -40,22 +40,22 @@ func (q *Stack) Empty() bool {
 	}
 	return true
 }
-func (q *Stack) GetTrace() []*Grammar {
+func (q *Stack) GetTrace() []*Node {
 	return q.trace
 }
 
 func NewStack() *Stack {
-	return &Stack{q: make([]*Grammar, 0),
-		trace: make([]*Grammar, 0)}
+	return &Stack{q: make([]*Node, 0),
+		trace: make([]*Node, 0)}
 }
 
 type Context struct {
 	SymCount   map[string]int
-	grammarMap map[string]*Grammar
+	grammarMap map[string]*Node
 	context.Context
 	HandlerIndex   int
 	SymbolStack    *Stack
-	ProductionRoot *Grammar
+	ProductionRoot *Node
 	Result         string
 	finish         bool
 }
@@ -63,7 +63,7 @@ type Context struct {
 func (c *Context) GetFinish() bool {
 	return c.finish
 }
-func NewContext(grammarMap map[string]*Grammar, startSymbol string) (*Context, error) {
+func NewContext(grammarMap map[string]*Node, startSymbol string) (*Context, error) {
 	_, ok := grammarMap[startSymbol]
 	if !ok {
 		return nil, errors.New("no such symbol in Grammar")

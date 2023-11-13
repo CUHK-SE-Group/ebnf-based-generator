@@ -36,13 +36,13 @@ type CatHandler struct {
 
 func (h *CatHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
 	cur := ctx.SymbolStack.Top()
-	if len(*cur.GetSymbols()) == 0 {
+	if len(cur.GetSymbols()) == 0 {
 		chain.Next(ctx, cb)
 		return
 	}
 	ctx.SymbolStack.Pop()
-	for i := len(*cur.GetSymbols()) - 1; i >= 0; i-- {
-		ctx.SymbolStack.Push((*cur.GetSymbols())[i])
+	for i := len(cur.GetSymbols()) - 1; i >= 0; i-- {
+		ctx.SymbolStack.Push((cur.GetSymbols())[i])
 	}
 	chain.Next(ctx, cb)
 }
@@ -64,13 +64,13 @@ type OrHandler struct {
 
 func (h *OrHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
 	cur := ctx.SymbolStack.Top()
-	if len(*cur.GetSymbols()) == 0 {
+	if len(cur.GetSymbols()) == 0 {
 		chain.Next(ctx, cb)
 		return
 	}
 	ctx.SymbolStack.Pop()
-	idx := rand.Int() % len(*cur.GetSymbols())
-	ctx.SymbolStack.Push((*cur.GetSymbols())[idx])
+	idx := rand.Int() % len(cur.GetSymbols())
+	ctx.SymbolStack.Push((cur.GetSymbols())[idx])
 	chain.Next(ctx, cb)
 }
 
@@ -93,15 +93,15 @@ func (h *IDHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
 	cur := ctx.SymbolStack.Top()
 	ctx.SymbolStack.Pop()
 
-	if len(*cur.GetSymbols()) != 0 {
+	if len(cur.GetSymbols()) != 0 {
 		glog.Error("Pattern mismatched[Identifier]")
 		return
 	}
-	if _, ok := ctx.grammarMap[cur.content]; !ok {
-		glog.Errorf("The identifier [%v] does not Existed", cur.content)
+	if _, ok := ctx.grammarMap[cur.GetContent()]; !ok {
+		glog.Errorf("The identifier [%v] does not Existed", cur.GetContent())
 		panic("The identifier does not Existed")
 	}
-	ctx.SymbolStack.Push(ctx.grammarMap[cur.content])
+	ctx.SymbolStack.Push(ctx.grammarMap[cur.GetContent()])
 	chain.Next(ctx, cb)
 }
 
@@ -120,7 +120,7 @@ func (h *IDHandler) Type() GrammarType {
 type TermHandler struct {
 }
 
-func (h *TermHandler) isTermPreserve(g *Grammar) bool {
+func (h *TermHandler) isTermPreserve(g *Node) bool {
 	content := g.GetContent()
 	return (content[0] == content[len(content)-1]) && (content[0] == '\'')
 }
@@ -138,7 +138,7 @@ func (h *TermHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
 	cur := ctx.SymbolStack.Top()
 	ctx.SymbolStack.Pop()
 
-	if len(*cur.GetSymbols()) != 0 {
+	if len(cur.GetSymbols()) != 0 {
 		glog.Error("Pattern mismatched[Terminal]")
 		return
 	}
@@ -178,11 +178,11 @@ func (h *BracketHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack)
 	cur := ctx.SymbolStack.Top()
 	ctx.SymbolStack.Pop()
 
-	if len(*cur.GetSymbols()) == 0 {
+	if len(cur.GetSymbols()) == 0 {
 		glog.Error("Pattern mismatched[Identifier]")
 		return
 	}
-	for i := len(*cur.GetSymbols()) - 1; i >= 0; i-- {
+	for i := len(cur.GetSymbols()) - 1; i >= 0; i-- {
 		ctx.SymbolStack.Push(cur.GetSymbol(i))
 	}
 	chain.Next(ctx, cb)
@@ -206,7 +206,7 @@ type ParenHandler struct {
 func (h *ParenHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
 	cur := ctx.SymbolStack.Top()
 	ctx.SymbolStack.Pop()
-	for i := len(*cur.GetSymbols()) - 1; i >= 0; i-- {
+	for i := len(cur.GetSymbols()) - 1; i >= 0; i-- {
 		ctx.SymbolStack.Push(cur.GetSymbol(i))
 	}
 	chain.Next(ctx, cb)
@@ -231,12 +231,12 @@ func (h *BraceHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
 	cur := ctx.SymbolStack.Top()
 	ctx.SymbolStack.Pop()
 
-	if len(*cur.GetSymbols()) == 0 {
+	if len(cur.GetSymbols()) == 0 {
 		glog.Error("Pattern mismatched[Identifier]")
 		return
 	}
 
-	for i := len(*cur.GetSymbols()) - 1; i >= 0; i-- {
+	for i := len(cur.GetSymbols()) - 1; i >= 0; i-- {
 		ctx.SymbolStack.Push(cur.GetSymbol(i))
 	}
 	chain.Next(ctx, cb)

@@ -40,9 +40,9 @@ func (c *Chain) Next(ctx *Context, f ResponseCallBack) {
 		}
 
 		// 如果类型符合
-		if ctx.SymbolStack.Top().gtype&c.Handlers[index].Type() != 0 && satisfy(ctx, c.Handlers[index]) {
+		if ctx.SymbolStack.Top().GetType()&c.Handlers[index].Type() != 0 && satisfy(ctx, c.Handlers[index]) {
 			fmt.Println("passing", c.Handlers[index].Name())
-			fmt.Println("cur node: ", ctx.SymbolStack.Top().content)
+			fmt.Println("cur node: ", ctx.SymbolStack.Top().GetContent())
 			c.Handlers[index].Handle(c, ctx, f)
 			return
 		}
