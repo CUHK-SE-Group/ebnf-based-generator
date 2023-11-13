@@ -45,6 +45,13 @@ func NewGrammar() *Grammar {
 	}
 	return newG
 }
+func (g *Grammar) GetInternal() graph.Graph[property] {
+	return g.internal
+}
+
+func (g *Grammar) GetNode(id string) *Node {
+	return &Node{internal: g.internal.GetVertexById(id)}
+}
 
 type Node struct {
 	internal graph.Vertex[property]
@@ -58,14 +65,15 @@ func newEdge(id string, from, to *Node) graph.Edge[property] {
 	return res
 }
 
-func NewNode(g *Grammar, tp GrammarType) *Node {
+func NewNode(g *Grammar, tp GrammarType, id, content string) *Node {
 	n := graph.NewVertex[property]()
 	n.SetProperty(prop, property{
 		Type:    tp,
 		Root:    nil,
 		Gram:    g,
-		Content: "",
+		Content: content,
 	})
+	n.SetID(id)
 	return &Node{internal: n}
 }
 
@@ -73,14 +81,14 @@ func (g *Node) GetType() GrammarType {
 	return g.internal.GetProperty(prop).Type
 }
 
+func (g *Node) GetID() string {
+	return g.internal.GetID()
+}
+
 func (g *Node) SetRoot(r *Node) {
 	ori := g.internal.GetProperty(prop)
 	ori.Root = r
 	g.internal.SetProperty(prop, ori)
-}
-
-func (g *Node) GetRoot() *Node {
-	return g.internal.GetProperty(prop).Root
 }
 
 func (g *Node) GetGrammar() *Grammar {
@@ -110,30 +118,4 @@ func (g *Node) GetSymbol(idx int) *Node {
 
 func (g *Node) GetContent() string {
 	return g.internal.GetProperty(prop).Content
-}
-
-func (g *Grammar) Visualize(filename string, expandSub bool) {
-	//ghash := func(gram *Grammar) string { return gram.content }
-	//gr := graph.New(ghash, graph.Directed(), graph.Rooted())
-	//_ = gr.AddVertex(g)
-	//
-	//queue := make([]*Grammar, 0)
-	//queue = append(queue, g)
-	//visited := make(map[string]bool, 0)
-	//for len(queue) != 0 {
-	//	cur := queue[0]
-	//	queue = queue[1:]
-	//	visited[cur.id] = true
-	//	for _, v := range *cur.GetSymbols() {
-	//		_ = gr.AddVertex(v)
-	//		_ = gr.AddEdge(cur.content, v.content)
-	//		if visited[v.id] {
-	//			continue
-	//		}
-	//		queue = append(queue, v)
-	//	}
-	//}
-	//
-	//file, _ := os.Create(filename)
-	//_ = draw.DOT(gr, file)
 }

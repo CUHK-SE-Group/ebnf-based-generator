@@ -182,14 +182,14 @@ func TestGraph(t *testing.T) {
 			},
 			test: func(g Graph[string]) {
 				v := g.GetVertexById("v1")
-				color, _ := v.GetProperty("color")
+				color := v.GetProperty("color")
 				if color != "blue" {
 					t.Errorf("expected vertex property color to be 'blue', got '%s'", color)
 				}
 			},
 			expected: func(g Graph[string]) bool {
 				v := g.GetVertexById("v1")
-				p, _ := v.GetProperty("color")
+				p := v.GetProperty("color")
 				return p == "blue"
 			},
 		},
@@ -211,14 +211,14 @@ func TestGraph(t *testing.T) {
 			},
 			test: func(g Graph[string]) {
 				e := g.GetEdgeById("e1")
-				weight, _ := e.GetProperty("weight")
+				weight := e.GetProperty("weight")
 				if weight != "10" {
 					t.Errorf("expected edge property weight to be '10', got '%s'", weight)
 				}
 			},
 			expected: func(g Graph[string]) bool {
 				e := g.GetEdgeById("e1")
-				p, _ := e.GetProperty("weight")
+				p := e.GetProperty("weight")
 				return p == "10"
 			},
 		},
