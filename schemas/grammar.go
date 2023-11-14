@@ -24,7 +24,7 @@ const (
 	GrammarTerminal
 )
 
-type property struct {
+type Property struct {
 	Type    GrammarType
 	Root    *Node
 	Gram    *Grammar
@@ -32,20 +32,20 @@ type property struct {
 }
 
 const (
-	prop = "property"
+	Prop = "Property"
 )
 
 type Grammar struct {
-	internal graph.Graph[property]
+	internal graph.Graph[Property]
 }
 
 func NewGrammar() *Grammar {
 	newG := &Grammar{
-		internal: graph.NewGraph[property](),
+		internal: graph.NewGraph[Property](),
 	}
 	return newG
 }
-func (g *Grammar) GetInternal() graph.Graph[property] {
+func (g *Grammar) GetInternal() graph.Graph[Property] {
 	return g.internal
 }
 
@@ -54,11 +54,11 @@ func (g *Grammar) GetNode(id string) *Node {
 }
 
 type Node struct {
-	internal graph.Vertex[property]
+	internal graph.Vertex[Property]
 }
 
-func newEdge(id string, from, to *Node) graph.Edge[property] {
-	res := graph.NewEdge[property]()
+func newEdge(id string, from, to *Node) graph.Edge[Property] {
+	res := graph.NewEdge[Property]()
 	res.SetID(id)
 	res.SetFrom(from.internal)
 	res.SetTo(to.internal)
@@ -66,8 +66,8 @@ func newEdge(id string, from, to *Node) graph.Edge[property] {
 }
 
 func NewNode(g *Grammar, tp GrammarType, id, content string) *Node {
-	n := graph.NewVertex[property]()
-	n.SetProperty(prop, property{
+	n := graph.NewVertex[Property]()
+	n.SetProperty(Prop, Property{
 		Type:    tp,
 		Root:    nil,
 		Gram:    g,
@@ -78,7 +78,7 @@ func NewNode(g *Grammar, tp GrammarType, id, content string) *Node {
 }
 
 func (g *Node) GetType() GrammarType {
-	return g.internal.GetProperty(prop).Type
+	return g.internal.GetProperty(Prop).Type
 }
 
 func (g *Node) GetID() string {
@@ -86,13 +86,13 @@ func (g *Node) GetID() string {
 }
 
 func (g *Node) SetRoot(r *Node) {
-	ori := g.internal.GetProperty(prop)
+	ori := g.internal.GetProperty(Prop)
 	ori.Root = r
-	g.internal.SetProperty(prop, ori)
+	g.internal.SetProperty(Prop, ori)
 }
 
 func (g *Node) GetGrammar() *Grammar {
-	return g.internal.GetProperty(prop).Gram
+	return g.internal.GetProperty(Prop).Gram
 }
 
 func (g *Node) AddSymbol(new *Node) int {
@@ -102,7 +102,7 @@ func (g *Node) AddSymbol(new *Node) int {
 }
 
 func (g *Node) GetSymbols() []*Node {
-	f := func(edge graph.Edge[property]) *Node {
+	f := func(edge graph.Edge[Property]) *Node {
 		return &Node{internal: edge.GetTo()}
 	}
 	return A.Map(f)(g.GetGrammar().internal.GetOutEdges(g.internal))
@@ -117,5 +117,5 @@ func (g *Node) GetSymbol(idx int) *Node {
 }
 
 func (g *Node) GetContent() string {
-	return g.internal.GetProperty(prop).Content
+	return g.internal.GetProperty(Prop).Content
 }

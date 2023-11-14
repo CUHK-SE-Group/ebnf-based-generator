@@ -2,10 +2,30 @@ package graph
 
 import (
 	"fmt"
-	"github.com/dominikbraun/graph/draw"
+	"io"
 	"os"
+	"text/template"
 )
-import g "github.com/dominikbraun/graph"
+
+//const dotTemplate = `strict {{.GraphType}} {
+//{{range $k, $v := .Attributes}}
+//	{{$k}}="{{$v}}";
+//{{end}}
+//{{range $s := .Statements}}
+//	"{{.Source}}" {{if .Target}}{{$.EdgeOperator}} "{{.Target}}" [ {{range $k, $v := .EdgeAttributes}}{{$k}}="{{$v}}", {{end}} weight={{.EdgeWeight}} ]{{else}}[ {{range $k, $v := .SourceAttributes}}{{$k}}="{{$v}}", {{end}} weight={{.SourceWeight}} ]{{end}};
+//{{end}}
+//}
+//`
+
+const dotTemplate = `strict {{.GraphType}} {
+{{range $k, $v := .Attributes}}
+	{{$k}}="{{$v}}";
+{{end}}
+{{range $s := .Statements}}
+	"{{.Source}}" {{if .Target}}{{$.EdgeOperator}} "{{.Target}}" [ label="{{.EdgeLabel}}", weight={{.EdgeWeight}} ]{{else}}[ label="{{.VertexLabel}}", weight={{.SourceWeight}} ]{{end}};
+{{end}}
+}
+`
 
 type Metadata string
 
@@ -121,24 +141,74 @@ func Clone[T any](graph Graph[T], newGraph func() Graph[T], newEdge func() Edge[
 	return clonedGraph
 }
 
-func Visualize[T any](graph Graph[T], filename string, vertexInfo func(vertex Vertex[T]) string, edgeInfo func(edge Edge[T]) (string, string)) {
-	if vertexInfo == nil {
-		vertexInfo = func(vertex Vertex[T]) string {
-			return vertex.GetID()
+func Visualize[PropertyType any](graph Graph[PropertyType], filename string, f func(vertex Vertex[PropertyType]) string) error {
+	desc, err := generateDOT(graph, f)
+	if err != nil {
+		return fmt.Errorf("failed to generate DOT description: %w", err)
+	}
+	w, _ := os.Create(filename)
+	return renderDOT(w, desc)
+}
+
+type description[PropertyType any] struct {
+	GraphType    string
+	Attributes   map[string]string
+	EdgeOperator string
+	Statements   []statement[PropertyType]
+}
+
+type statement[PropertyType any] struct {
+	Source       interface{}
+	Target       interface{}
+	SourceWeight int
+	EdgeLabel    string
+	EdgeWeight   int
+	VertexLabel  string
+}
+
+func generateDOT[PropertyType any](g Graph[PropertyType], f func(node Vertex[PropertyType]) string) (description[PropertyType], error) {
+	desc := description[PropertyType]{
+		GraphType:    "graph",
+		Attributes:   make(map[string]string),
+		EdgeOperator: "--",
+		Statements:   make([]statement[PropertyType], 0),
+	}
+	if f == nil {
+		f = func(node Vertex[PropertyType]) string {
+			return node.GetID()
 		}
 	}
-	if edgeInfo == nil {
-		edgeInfo = func(edge Edge[T]) (string, string) {
-			return edge.GetFrom().GetID(), edge.GetTo().GetID()
+
+	desc.GraphType = "digraph"
+	desc.EdgeOperator = "->"
+
+	for _, vertex := range g.GetAllVertices() {
+		stmt := statement[PropertyType]{
+			Source:       vertex.GetID(),
+			SourceWeight: 1,
+			VertexLabel:  f(vertex),
+		}
+		desc.Statements = append(desc.Statements, stmt)
+
+		for _, edge := range g.GetOutEdges(vertex) {
+			stmt1 := statement[PropertyType]{
+				Source:     vertex.GetID(),
+				Target:     edge.GetTo().GetID(),
+				EdgeWeight: 1,
+				//EdgeLabel:  f(edge),
+			}
+			desc.Statements = append(desc.Statements, stmt1)
 		}
 	}
-	vis := g.New(g.StringHash, g.Directed())
-	for _, v := range graph.GetAllVertices() {
-		_ = vis.AddVertex(vertexInfo(v))
+
+	return desc, nil
+}
+
+func renderDOT[PropertyType any](w io.Writer, d description[PropertyType]) error {
+	tpl, err := template.New("dotTemplate").Parse(dotTemplate)
+	if err != nil {
+		return fmt.Errorf("failed to parse template: %w", err)
 	}
-	for _, v := range graph.GetAllEdges() {
-		_ = vis.AddEdge(edgeInfo(v))
-	}
-	file, _ := os.Create(filename)
-	_ = draw.DOT(vis, file)
+
+	return tpl.Execute(w, d)
 }

@@ -13,7 +13,7 @@ func TestNewGrammar(t *testing.T) {
 		g := createSampleGrammar()
 
 		// Visualize the graph for debugging purposes
-		graph.Visualize(g.GetInternal(), "./fig.dot", nil, nil)
+		graph.Visualize(g.GetInternal(), "./fig.dot", nil)
 
 		verifyGrammarNodes(t, g)
 	})

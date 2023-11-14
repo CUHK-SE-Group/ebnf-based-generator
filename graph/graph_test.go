@@ -78,7 +78,7 @@ func TestNewGraph(t *testing.T) {
 	validate(g)
 	newG := Clone(g, NewGraph[string], NewEdge[string], NewVertex[string])
 	validate(newG)
-	Visualize(g, "./file.dot", nil, nil)
+	Visualize(g, "./file.dot")
 }
 
 type GraphTestCase[T any] struct {
