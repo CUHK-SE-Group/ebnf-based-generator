@@ -51,7 +51,7 @@ func NewStack() *Stack {
 
 type Context struct {
 	SymCount   map[string]int
-	grammarMap map[string]*Node
+	grammarMap *Grammar
 	context.Context
 	HandlerIndex   int
 	SymbolStack    *Stack
@@ -63,15 +63,15 @@ type Context struct {
 func (c *Context) GetFinish() bool {
 	return c.finish
 }
-func NewContext(grammarMap map[string]*Node, startSymbol string) (*Context, error) {
-	_, ok := grammarMap[startSymbol]
-	if !ok {
-		return nil, errors.New("no such symbol in Grammar")
+func NewContext(grammarMap *Grammar, startSymbol string) (*Context, error) {
+	node := grammarMap.GetNode(startSymbol)
+	if node == nil {
+		return nil, errors.New("no such symbol")
 	}
 	return &Context{
 		SymCount:       map[string]int{},
 		grammarMap:     grammarMap,
-		SymbolStack:    NewStack().Push(grammarMap[startSymbol]),
-		ProductionRoot: grammarMap[startSymbol],
+		SymbolStack:    NewStack().Push(node),
+		ProductionRoot: node,
 	}, nil
 }

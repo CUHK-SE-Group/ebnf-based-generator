@@ -44,7 +44,7 @@ type WeightedHandler struct {
 
 func (h *WeightedHandler) Handle(chain *schemas.Chain, ctx *schemas.Context, cb schemas.ResponseCallBack) {
 	cur := ctx.SymbolStack.Top()
-	if len(*cur.GetSymbols()) == 0 {
+	if len(cur.GetSymbols()) == 0 {
 		chain.Next(ctx, cb)
 		return
 	}
@@ -56,10 +56,10 @@ func (h *WeightedHandler) Handle(chain *schemas.Chain, ctx *schemas.Context, cb 
 		idx = 0
 		fmt.Println(trace)
 	} else {
-		idx = rand.Int() % len(*cur.GetSymbols())
+		idx = rand.Int() % len(cur.GetSymbols())
 	}
 	ctx.SymCount[cur.GetID()]++
-	ctx.SymbolStack.Push((*cur.GetSymbols())[idx])
+	ctx.SymbolStack.Push((cur.GetSymbols())[idx])
 	chain.Next(ctx, cb)
 }
 

@@ -97,11 +97,12 @@ func (h *IDHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
 		glog.Error("Pattern mismatched[Identifier]")
 		return
 	}
-	if _, ok := ctx.grammarMap[cur.GetContent()]; !ok {
+	node := ctx.grammarMap.GetNode(cur.GetContent())
+	if node == nil {
 		glog.Errorf("The identifier [%v] does not Existed", cur.GetContent())
 		panic("The identifier does not Existed")
 	}
-	ctx.SymbolStack.Push(ctx.grammarMap[cur.GetContent()])
+	ctx.SymbolStack.Push(node)
 	chain.Next(ctx, cb)
 }
 
