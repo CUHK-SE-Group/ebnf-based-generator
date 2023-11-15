@@ -42,12 +42,12 @@ func map2slice[T1 comparable, T2 any](ori map[T1]T2) []T2 {
 	return res
 }
 func TestNewGraph(t *testing.T) {
-	var g Graph[string]
+	var g Graph[string, string]
 	vertices := make(map[string]Vertex[string])
-	edges := make(map[string]Edge[string])
-	g = NewGraph[string]()
+	edges := make(map[string]Edge[string, string])
+	g = NewGraph[string, string]()
 	for i := 0; i < 10; i++ {
-		e := NewEdge[string]()
+		e := NewEdge[string, string]()
 		e.SetID(fmt.Sprintf("edge%d", i))
 
 		from := NewVertex[string]()
@@ -63,7 +63,7 @@ func TestNewGraph(t *testing.T) {
 		edges[e.GetID()] = e
 		g.AddEdge(e)
 	}
-	validate := func(graph Graph[string]) {
+	validate := func(graph Graph[string, string]) {
 		resV := graph.GetAllVertices()
 		resE := graph.GetAllEdges()
 		oriV := map2slice(vertices)
@@ -76,118 +76,118 @@ func TestNewGraph(t *testing.T) {
 		}
 	}
 	validate(g)
-	newG := Clone(g, NewGraph[string], NewEdge[string], NewVertex[string])
+	newG := Clone(g, NewGraph[string, string], NewEdge[string, string], NewVertex[string])
 	validate(newG)
 	Visualize(g, "./file.dot", nil)
 }
 
-type GraphTestCase[T any] struct {
+type GraphTestCase[T1 any, T2 any] struct {
 	name     string
-	setup    func(g Graph[T])      // 设置测试环境的函数
-	test     func(g Graph[T])      // 实际测试执行的函数
-	expected func(g Graph[T]) bool // 验证结果的函数
+	setup    func(g Graph[T1, T2])      // 设置测试环境的函数
+	test     func(g Graph[T1, T2])      // 实际测试执行的函数
+	expected func(g Graph[T1, T2]) bool // 验证结果的函数
 }
 
 func TestGraph(t *testing.T) {
-	tests := []GraphTestCase[string]{
+	tests := []GraphTestCase[string, string]{
 		{
 			name: "Add and Get Vertex",
-			setup: func(g Graph[string]) {
+			setup: func(g Graph[string, string]) {
 				v := NewVertex[string]()
 				v.SetID("v1")
 				g.AddVertex(v)
 			},
-			test: func(g Graph[string]) {
+			test: func(g Graph[string, string]) {
 				v := g.GetAllVertices()
 				if len(v) != 1 {
 					t.Errorf("expected 1 vertex, got %d", len(v))
 				}
 			},
-			expected: func(g Graph[string]) bool {
+			expected: func(g Graph[string, string]) bool {
 				return len(g.GetAllVertices()) == 1
 			},
 		},
 		{
 			name: "Add and Get Edge",
-			setup: func(g Graph[string]) {
+			setup: func(g Graph[string, string]) {
 				v1 := NewVertex[string]()
 				v1.SetID("v1")
 				v2 := NewVertex[string]()
 				v2.SetID("v2")
 				g.AddVertex(v1)
 				g.AddVertex(v2)
-				e := NewEdge[string]()
+				e := NewEdge[string, string]()
 				e.SetID("e1")
 				e.SetFrom(v1)
 				e.SetTo(v2)
 				g.AddEdge(e)
 			},
-			test: func(g Graph[string]) {
+			test: func(g Graph[string, string]) {
 				e := g.GetAllEdges()
 				if len(e) != 1 {
 					t.Errorf("expected 1 edge, got %d", len(e))
 				}
 			},
-			expected: func(g Graph[string]) bool {
+			expected: func(g Graph[string, string]) bool {
 				return len(g.GetAllEdges()) == 1
 			},
 		},
 		{
 			name: "Delete Vertex",
-			setup: func(g Graph[string]) {
+			setup: func(g Graph[string, string]) {
 				v := NewVertex[string]()
 				v.SetID("v1")
 				g.AddVertex(v)
 			},
-			test: func(g Graph[string]) {
+			test: func(g Graph[string, string]) {
 				v := NewVertex[string]()
 				v.SetID("v1")
 				g.DeleteVertex(v)
 			},
-			expected: func(g Graph[string]) bool {
+			expected: func(g Graph[string, string]) bool {
 				return len(g.GetAllVertices()) == 0
 			},
 		},
 		{
 			name: "Delete Edge",
-			setup: func(g Graph[string]) {
+			setup: func(g Graph[string, string]) {
 				v1 := NewVertex[string]()
 				v1.SetID("v1")
 				v2 := NewVertex[string]()
 				v2.SetID("v2")
 				g.AddVertex(v1)
 				g.AddVertex(v2)
-				e := NewEdge[string]()
+				e := NewEdge[string, string]()
 				e.SetID("e1")
 				e.SetFrom(v1)
 				e.SetTo(v2)
 				g.AddEdge(e)
 			},
-			test: func(g Graph[string]) {
-				e := NewEdge[string]()
+			test: func(g Graph[string, string]) {
+				e := NewEdge[string, string]()
 				e.SetID("e1")
 				g.DeleteEdge(e)
 			},
-			expected: func(g Graph[string]) bool {
+			expected: func(g Graph[string, string]) bool {
 				return len(g.GetAllEdges()) == 0
 			},
 		},
 		{
 			name: "Set and Get Vertex Property",
-			setup: func(g Graph[string]) {
+			setup: func(g Graph[string, string]) {
 				v := NewVertex[string]()
 				v.SetID("v1")
 				v.SetProperty("color", "blue")
 				g.AddVertex(v)
 			},
-			test: func(g Graph[string]) {
+			test: func(g Graph[string, string]) {
 				v := g.GetVertexById("v1")
 				color := v.GetProperty("color")
 				if color != "blue" {
 					t.Errorf("expected vertex property color to be 'blue', got '%s'", color)
 				}
 			},
-			expected: func(g Graph[string]) bool {
+			expected: func(g Graph[string, string]) bool {
 				v := g.GetVertexById("v1")
 				p := v.GetProperty("color")
 				return p == "blue"
@@ -195,28 +195,28 @@ func TestGraph(t *testing.T) {
 		},
 		{
 			name: "Set and Get Edge Property",
-			setup: func(g Graph[string]) {
+			setup: func(g Graph[string, string]) {
 				v1 := NewVertex[string]()
 				v1.SetID("v1")
 				v2 := NewVertex[string]()
 				v2.SetID("v2")
 				g.AddVertex(v1)
 				g.AddVertex(v2)
-				e := NewEdge[string]()
+				e := NewEdge[string, string]()
 				e.SetID("e1")
 				e.SetFrom(v1)
 				e.SetTo(v2)
 				e.SetProperty("weight", "10")
 				g.AddEdge(e)
 			},
-			test: func(g Graph[string]) {
+			test: func(g Graph[string, string]) {
 				e := g.GetEdgeById("e1")
 				weight := e.GetProperty("weight")
 				if weight != "10" {
 					t.Errorf("expected edge property weight to be '10', got '%s'", weight)
 				}
 			},
-			expected: func(g Graph[string]) bool {
+			expected: func(g Graph[string, string]) bool {
 				e := g.GetEdgeById("e1")
 				p := e.GetProperty("weight")
 				return p == "10"
@@ -224,22 +224,22 @@ func TestGraph(t *testing.T) {
 		},
 		{
 			name: "Set and Get Metadata",
-			setup: func(g Graph[string]) {
+			setup: func(g Graph[string, string]) {
 				g.SetMetadata("sorted", true)
 			},
-			test: func(g Graph[string]) {
+			test: func(g Graph[string, string]) {
 				sorted := g.GetMetadata("sorted").(bool)
 				if !sorted {
 					t.Errorf("expected metadata sorted to be true, got false")
 				}
 			},
-			expected: func(g Graph[string]) bool {
+			expected: func(g Graph[string, string]) bool {
 				return g.GetMetadata("sorted").(bool)
 			},
 		},
 		{
 			name: "Auto-delete Vertex When No Edges Remain",
-			setup: func(g Graph[string]) {
+			setup: func(g Graph[string, string]) {
 				g.SetMetadata(CleanVertexByEdge, true)
 				v := NewVertex[string]()
 				v.SetID("v1")
@@ -247,18 +247,18 @@ func TestGraph(t *testing.T) {
 
 				v2 := NewVertex[string]()
 				v2.SetID("v2")
-				e := NewEdge[string]()
+				e := NewEdge[string, string]()
 				e.SetID("e1")
 				e.SetFrom(v)
 				e.SetTo(v2)
 				g.AddEdge(e)
 			},
-			test: func(g Graph[string]) {
-				e := NewEdge[string]()
+			test: func(g Graph[string, string]) {
+				e := NewEdge[string, string]()
 				e.SetID("e1")
 				g.DeleteEdge(e)
 			},
-			expected: func(g Graph[string]) bool {
+			expected: func(g Graph[string, string]) bool {
 				vertices := g.GetAllVertices()
 				for _, v := range vertices {
 					if v.GetID() == "v1" {
@@ -272,7 +272,7 @@ func TestGraph(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			g := NewGraph[string]()
+			g := NewGraph[string, string]()
 			tc.setup(g)          // 设置测试环境
 			tc.test(g)           // 执行测试
 			if !tc.expected(g) { // 验证结果

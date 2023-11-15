@@ -36,16 +36,16 @@ const (
 )
 
 type Grammar struct {
-	internal graph.Graph[Property]
+	internal graph.Graph[string, Property]
 }
 
 func NewGrammar() *Grammar {
 	newG := &Grammar{
-		internal: graph.NewGraph[Property](),
+		internal: graph.NewGraph[string, Property](),
 	}
 	return newG
 }
-func (g *Grammar) GetInternal() graph.Graph[Property] {
+func (g *Grammar) GetInternal() graph.Graph[string, Property] {
 	return g.internal
 }
 
@@ -57,8 +57,8 @@ type Node struct {
 	internal graph.Vertex[Property]
 }
 
-func newEdge(id string, from, to *Node) graph.Edge[Property] {
-	res := graph.NewEdge[Property]()
+func newEdge(id string, from, to *Node) graph.Edge[string, Property] {
+	res := graph.NewEdge[string, Property]()
 	res.SetID(id)
 	res.SetFrom(from.internal)
 	res.SetTo(to.internal)
@@ -102,7 +102,7 @@ func (g *Node) AddSymbol(new *Node) int {
 }
 
 func (g *Node) GetSymbols() []*Node {
-	f := func(edge graph.Edge[Property]) *Node {
+	f := func(edge graph.Edge[string, Property]) *Node {
 		return &Node{internal: edge.GetTo()}
 	}
 	return A.Map(f)(g.GetGrammar().internal.GetOutEdges(g.internal))
