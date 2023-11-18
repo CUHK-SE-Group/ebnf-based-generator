@@ -5,7 +5,6 @@
 *output*
 parser/ebnf/
 parser/figures/
-go.sum
 *.prof
 *.tokens
 gen/
