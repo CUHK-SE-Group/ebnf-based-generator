@@ -2,10 +2,11 @@ package schemas
 
 import (
 	"errors"
-	"github.com/golang/glog"
-	"github.com/lucasjones/reggen"
 	"math/rand"
 	"regexp"
+
+	"github.com/golang/glog"
+	"github.com/lucasjones/reggen"
 )
 
 const (
@@ -56,7 +57,7 @@ func (h *CatHandler) Name() string {
 }
 
 func (h *CatHandler) Type() GrammarType {
-	return GrammarProduction | GrammarTerm
+	return GrammarProduction | GrammarCatenate
 }
 
 type OrHandler struct {
@@ -83,7 +84,7 @@ func (h *OrHandler) Name() string {
 }
 
 func (h *OrHandler) Type() GrammarType {
-	return GrammarExpr
+	return GrammarOR
 }
 
 type IDHandler struct {
@@ -198,7 +199,7 @@ func (h *BracketHandler) Name() string {
 }
 
 func (h *BracketHandler) Type() GrammarType {
-	return GrammarBRACKET
+	return GrammarOptional
 }
 
 type ParenHandler struct {

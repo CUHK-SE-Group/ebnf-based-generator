@@ -11,18 +11,39 @@ type GrammarType int
 // 带yes标记的symbol要指定生成策略
 const (
 	GrammarProduction GrammarType = 1 << iota
-	GrammarExpr                   // yes
-	GrammarTerm
+	GrammarOR                     // yes
+	GrammarCatenate
+	GrammarOptional // yes
 	GrammarPAREN
-	GrammarBRACKET // yes
-	GrammarBRACE   // yes
-	GrammarREP     // yes
-	GrammarPLUS    // yes
-	GrammarEXT     // yes
-	GrammarSUB     // yes
+	GrammarBRACE // yes
+	GrammarREP   // yes
+	GrammarPLUS  // yes
+	GrammarEXT   // yes
+	GrammarSUB   // yes
 	GrammarID
 	GrammarTerminal
+	GrammarChoice
 )
+
+var typeStrRep = map[GrammarType]string{
+	GrammarProduction: "GrammarProduction",
+	GrammarOR:         "GrammarOR",
+	GrammarCatenate:   "GrammarCatenate",
+	GrammarOptional:   "GrammarOptional",
+	GrammarPAREN:      "GrammarPAREN",
+	GrammarBRACE:      "GrammarBRACE",
+	GrammarREP:        "GrammarREP",
+	GrammarPLUS:       "GrammarPLUS",
+	GrammarEXT:        "GrammarEXT",
+	GrammarSUB:        "GrammarSUB",
+	GrammarID:         "GrammarID",
+	GrammarTerminal:   "GrammarTerminal",
+	GrammarChoice:     "GrammarChoice",
+}
+
+func GetGrammarTypeStr(t GrammarType) string {
+	return typeStrRep[t]
+}
 
 type Property struct {
 	Type    GrammarType
@@ -88,6 +109,12 @@ func (g *Node) GetID() string {
 func (g *Node) SetRoot(r *Node) {
 	ori := g.internal.GetProperty(Prop)
 	ori.Root = r
+	g.internal.SetProperty(Prop, ori)
+}
+
+func (g *Node) SetType(t GrammarType) {
+	ori := g.internal.GetProperty(Prop)
+	ori.Type = t
 	g.internal.SetProperty(Prop, ori)
 }
 
