@@ -72,7 +72,7 @@ func (h *WeightedHandler) Name() string {
 }
 
 func (h *WeightedHandler) Type() schemas.GrammarType {
-	return schemas.GrammarExpr
+	return schemas.GrammarOR
 }
 func TestWeightedHandler(t *testing.T) {
 	g, err := parser.Parse("parser/testdata/simple.ebnf")

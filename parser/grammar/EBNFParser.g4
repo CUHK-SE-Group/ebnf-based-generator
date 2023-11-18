@@ -7,17 +7,17 @@ ebnf: production*;
 
 production: ID EQUAL expr SEMICOLON;
 
-expr: term (OR term)*;
+expr: term (COMMA term)*;
 
-term: factor (COMMA factor)*;
+term: factor (OR factor)*;
 
 factor: identifier #ID
-      | LPAREN expr RPAREN #PAREN
+      | factor choice factor? #CHOICE
       | LBRACKET expr RBRACKET #BRACKET
       | LBRACE expr RBRACE  #BRACE
-      | factor choice #None
       | QUOTE TEXT QUOTE #QUOTE
       | DOUBLEQUOTE REGTEXT DOUBLEQUOTE #QUOTE
+      | LPAREN expr RPAREN #None
       ;
 
 
@@ -28,11 +28,3 @@ choice: REP #REP
         ;
 
 identifier: ID;
-
-
-
-
-
-
-
-

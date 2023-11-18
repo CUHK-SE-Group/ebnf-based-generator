@@ -2,24 +2,48 @@ package parser
 
 import (
 	"fmt"
+	"path/filepath"
+	"testing"
+
 	"github.com/CUHK-SE-Group/generic-generator/graph"
 	"github.com/CUHK-SE-Group/generic-generator/schemas"
-	"testing"
 )
 
-func TestParseCalculator(t *testing.T) {
-	productions, _ := Parse("./testdata/simple.ebnf")
-	graph.Visualize(productions.GetInternal(), "file.dot", func(v graph.Vertex[schemas.Property]) string {
-		return fmt.Sprintf("id: %s content: %s type: %d", v.GetID(), v.GetProperty(schemas.Prop).Content, v.GetProperty(schemas.Prop).Type)
+func parseAndVisualize(file string) {
+	productions, _ := Parse(file)
+	filenameWithoutExt := file[:len(file)-len(filepath.Ext(file))]
+	graph.Visualize(productions.GetInternal(), filepath.Join(filenameWithoutExt+".dot"), func(v graph.Vertex[schemas.Property]) string {
+		return fmt.Sprintf("id: %s\n content: %s\n type: %s", v.GetID(), v.GetProperty(schemas.Prop).Content, schemas.GetGrammarTypeStr(v.GetProperty(schemas.Prop).Type))
 	})
-	//graph.Visualize(productions.GetInternal(), "file.dot", nil, nil)
 }
 
-//func TestParseCypher(t *testing.T) {
-//	productions, _ := Parse("./testdata/cypher.ebnf")
-//	for _, g := range productions {
-//		fmt.Printf("%+v\n", g)
-//	}
-//	root := MergeProduction(productions, "Cypher")
-//	root.Visualize(fmt.Sprintf("figures/root.gv"), true)
-//}
+func TestBasic(t *testing.T) {
+	parseAndVisualize("./testdata/basic/basic_all.ebnf")
+	parseAndVisualize("./testdata/basic/basic_comma.ebnf")
+	parseAndVisualize("./testdata/basic/basic_or.ebnf")
+}
+
+func TestNested(t *testing.T) {
+	parseAndVisualize("./testdata/nested/nested_paren.ebnf")
+	parseAndVisualize("./testdata/nested/nested_brace.ebnf")
+	parseAndVisualize("./testdata/nested/nested_bracket.ebnf")
+	parseAndVisualize("./testdata/nested/nested_all.ebnf")
+}
+
+func TestChoice(t *testing.T) {
+	parseAndVisualize("./testdata/choice/choice.ebnf")
+}
+
+func TestStrings(t *testing.T) {
+	parseAndVisualize("./testdata/strings/single_quote.ebnf")
+	parseAndVisualize("./testdata/strings/double_quote.ebnf")
+}
+
+func TestParseCalculator(t *testing.T) {
+	parseAndVisualize("./testdata/complete/simple.ebnf")
+}
+
+func TestParseCypher(t *testing.T) {
+	parseAndVisualize("./testdata/complete/cypher.ebnf")
+
+}

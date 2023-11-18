@@ -2,13 +2,15 @@ package parser
 
 import (
 	"fmt"
+	"log/slog"
+	"os"
+	"strconv"
+	"strings"
+
 	"github.com/CUHK-SE-Group/generic-generator/log"
 	"github.com/CUHK-SE-Group/generic-generator/parser/ebnf"
 	"github.com/CUHK-SE-Group/generic-generator/schemas"
 	"github.com/antlr4-go/antlr/v4"
-	"log/slog"
-	"os"
-	"strconv"
 )
 
 /*
@@ -36,8 +38,7 @@ type ebnfListener struct {
 	logger            *slog.Logger
 	grammar           *schemas.Grammar
 	productions       map[string]*schemas.Node
-	exprCnt           int
-	termCnt           int
+	popStack          []int
 }
 
 func newEbnfListener() *ebnfListener {
@@ -70,6 +71,18 @@ func (l *ebnfListener) pop() {
 	l.stack = l.stack[:len(l.stack)-1]
 }
 
+func (l *ebnfListener) enter(status int) {
+	l.popStack = append(l.popStack, status)
+}
+
+func (l *ebnfListener) exit() {
+	last := l.popStack[len(l.popStack)-1]
+	l.popStack = l.popStack[:len(l.popStack)-1]
+	if last != 0 {
+		l.pop()
+	}
+}
+
 func (l *ebnfListener) push(g *schemas.Node) {
 	l.stack = append(l.stack, g)
 }
@@ -79,6 +92,15 @@ func (l *ebnfListener) clear() {
 }
 func (l *ebnfListener) empty() bool {
 	return len(l.stack) == 0
+}
+
+func (l *ebnfListener) addSymbolTop(n *schemas.Node) {
+	l.top().AddSymbol(n)
+}
+
+func (l *ebnfListener) addThenPush(n *schemas.Node) {
+	l.addSymbolTop(n)
+	l.push(n)
 }
 
 func (l *ebnfListener) EnterProduction(c *ebnf.ProductionContext) {
@@ -103,123 +125,97 @@ func (l *ebnfListener) ExitProduction(c *ebnf.ProductionContext) {
 }
 
 func (l *ebnfListener) EnterExpr(c *ebnf.ExprContext) {
-	children := make([]*schemas.Node, 0)
-	for i, v := range c.AllTerm() {
-		l.logger.Info("expr", fmt.Sprint(i), v.GetText())
-		n := schemas.NewNode(l.grammar, schemas.GrammarExpr, l.generateId(), v.GetText())
-		l.top().AddSymbol(n)
-		children = append(children, n)
+	l.logger.Info("entered expr", fmt.Sprint(c.GetRuleIndex()), c.GetText())
+	if len(c.AllCOMMA()) != 0 {
+		l.addThenPush(schemas.NewNode(l.grammar, schemas.GrammarCatenate, l.generateId(), c.GetText()))
+		l.enter(1)
+	} else {
+		l.enter(0)
 	}
-
-	for i := len(children) - 1; i >= 0; i-- {
-		l.push(children[i])
-		l.exprCnt++
-	}
-
 }
+
 func (l *ebnfListener) ExitExpr(c *ebnf.ExprContext) {
-	for l.exprCnt > 0 {
-		l.pop()
-		l.exprCnt--
-	}
+	l.exit()
 }
 
 func (l *ebnfListener) EnterTerm(c *ebnf.TermContext) {
-	children := make([]*schemas.Node, 0)
-	for i, v := range c.AllFactor() {
-		l.logger.Info("term", fmt.Sprint(i), v.GetText())
-		n := schemas.NewNode(l.grammar, schemas.GrammarTerm, l.generateId(), v.GetText())
-		l.top().AddSymbol(n)
-		children = append(children, n)
-	}
-	for i := len(children) - 1; i >= 0; i-- {
-		l.push(children[i])
-		l.termCnt++
+	l.logger.Info("entered term", fmt.Sprint(c.GetRuleIndex()), c.GetText())
+	if len(c.AllOR()) != 0 {
+		l.addThenPush(schemas.NewNode(l.grammar, schemas.GrammarOR, l.generateId(), c.GetText()))
+		l.enter(1)
+	} else {
+		l.enter(0)
 	}
 }
 
 func (l *ebnfListener) ExitTerm(c *ebnf.TermContext) {
-	for l.termCnt > 0 {
-		l.pop()
-		l.termCnt--
-	}
+	l.exit()
 }
 
-//
-//// EnterID one of factor branch
-//func (l *ebnfListener) EnterID(c *ebnf.IDContext) {
-//	l.logger.Info("id", "val", c.GetText())
-//	n := schemas.NewNode(l.grammar, schemas.GrammarID, l.generateId(), c.GetText())
-//	l.top().AddSymbol(n)
-//	l.push(n)
-//}
-//func (l *ebnfListener) ExitID(c *ebnf.IDContext) {
-//	l.pop()
-//}
-//
-//// EnterQUOTE one of factor branch
-//func (l *ebnfListener) EnterQUOTE(c *ebnf.QUOTEContext) {
-//	l.logger.Info("quote", "val", c.GetText())
-//}
-//func (l *ebnfListener) ExitQUOTE(c *ebnf.QUOTEContext) {
-//}
-//
-//// one of factor branch
-//func (l *ebnfListener) EnterPAREN(c *ebnf.PARENContext) {
-//	l.logger.Info("paren", "val", c.GetText())
-//}
-//func (l *ebnfListener) ExitPAREN(c *ebnf.PARENContext) {
-//}
-//
-//// one of factor branch
-//func (l *ebnfListener) EnterBRACKET(c *ebnf.BRACKETContext) {
-//	l.logger.Info("bracket", "val", c.GetText())
-//}
-//func (l *ebnfListener) ExitBRACKET(c *ebnf.BRACKETContext) {
-//}
-//
-//// one of factor branch
-//func (l *ebnfListener) EnterBRACE(c *ebnf.BRACEContext) {
-//	l.logger.Info("brace", "val", c.GetText())
-//}
-//func (l *ebnfListener) ExitBRACE(c *ebnf.BRACEContext) {
-//}
-//
-//// one of factor branch
-//func (l *ebnfListener) EnterREP(c *ebnf.REPContext) {
-//	l.logger.Info("rep", "val", c.GetText())
-//}
-//
-//// one of factor branch
-//func (l *ebnfListener) ExitREP(c *ebnf.REPContext) {
-//}
-//
-//// one of factor branch
-//func (l *ebnfListener) EnterPLUS(c *ebnf.PLUSContext) {
-//	l.logger.Info("plus", "val", c.GetText())
-//}
-//
-//// one of factor branch
-//func (l *ebnfListener) ExitPLUS(c *ebnf.PLUSContext) {
-//}
-//
-//// one of factor branch
-//func (l *ebnfListener) EnterEXT(c *ebnf.EXTContext) {
-//	l.logger.Info("ext", "val", c.GetText())
-//}
-//
-//// one of factor branch
-//func (l *ebnfListener) ExitEXT(c *ebnf.EXTContext) {
-//}
-//
-//// one of factor branch
-//func (l *ebnfListener) EnterSUB(c *ebnf.SUBContext) {
-//	l.logger.Info("sub", "val", c.GetText())
-//}
-//
-//// one of factor branch
-//func (l *ebnfListener) ExitSUB(c *ebnf.SUBContext) {
-//}
+func (l *ebnfListener) EnterID(c *ebnf.IDContext) {
+	l.logger.Info("encountered id", "val", c.GetText())
+	l.addSymbolTop(schemas.NewNode(l.grammar, schemas.GrammarID, l.generateId(), c.GetText()))
+}
+
+func (l *ebnfListener) EnterQUOTE(c *ebnf.QUOTEContext) {
+	l.logger.Info("encountered quote", "val", c.GetText())
+	content := strings.Trim(c.GetText(), "'\"")
+	l.addSymbolTop(schemas.NewNode(l.grammar, schemas.GrammarTerminal, l.generateId(), content))
+}
+
+func (l *ebnfListener) EnterCHOICE(c *ebnf.CHOICEContext) {
+	l.logger.Info("entered choice", fmt.Sprint(c.GetRuleIndex()), c.GetText())
+	l.addThenPush(schemas.NewNode(l.grammar, schemas.GrammarChoice, l.generateId(), c.GetText()))
+}
+
+func (l *ebnfListener) ExitCHOICE(c *ebnf.CHOICEContext) {
+	l.pop()
+}
+
+func (l *ebnfListener) EnterREP(c *ebnf.REPContext) {
+	l.logger.Info("entered rep", fmt.Sprint(c.GetRuleIndex()), c.GetText())
+	if l.top().GetType() != schemas.GrammarChoice {
+		l.logger.Error("parent is not choice", "id", l.top().GetID(), "content", l.top().GetContent())
+		os.Exit(1)
+	}
+	l.top().SetType(schemas.GrammarREP)
+}
+
+func (l *ebnfListener) EnterPLUS(c *ebnf.PLUSContext) {
+	l.logger.Info("entered rep", fmt.Sprint(c.GetRuleIndex()), c.GetText())
+	if l.top().GetType() != schemas.GrammarChoice {
+		l.logger.Error("parent is not choice", "id", l.top().GetID(), "content", l.top().GetContent())
+		os.Exit(1)
+	}
+	l.top().SetType(schemas.GrammarPLUS)
+}
+
+func (l *ebnfListener) EnterEXT(c *ebnf.EXTContext) {
+	l.logger.Info("entered rep", fmt.Sprint(c.GetRuleIndex()), c.GetText())
+	if l.top().GetType() != schemas.GrammarChoice {
+		l.logger.Error("parent is not choice", "id", l.top().GetID(), "content", l.top().GetContent())
+		os.Exit(1)
+	}
+	l.top().SetType(schemas.GrammarEXT)
+}
+
+func (l *ebnfListener) EnterSUB(c *ebnf.SUBContext) {
+	l.logger.Info("entered rep", fmt.Sprint(c.GetRuleIndex()), c.GetText())
+	if l.top().GetType() != schemas.GrammarChoice {
+		l.logger.Error("parent is not choice", "id", l.top().GetID(), "content", l.top().GetContent())
+		os.Exit(1)
+	}
+	l.top().SetType(schemas.GrammarSUB)
+}
+
+func (l *ebnfListener) EnterBRACKET(c *ebnf.BRACKETContext) {
+	l.logger.Info("entered bracket", fmt.Sprint(c.GetRuleIndex()), c.GetText())
+	l.addThenPush(schemas.NewNode(l.grammar, schemas.GrammarOptional, l.generateId(), c.GetText()))
+}
+
+func (l *ebnfListener) ExitBRACKET(c *ebnf.BRACKETContext) {
+	l.pop()
+}
 
 func Parse(file string) (*schemas.Grammar, error) {
 	is, err := antlr.NewFileStream(file)
