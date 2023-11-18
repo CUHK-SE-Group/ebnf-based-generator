@@ -1,4 +1,6 @@
+gen:
+	make -C grammar gen
+
 clean:
 	go clean
-	rm -rf ebnf/*
-	rm -f testdata/*output*
+	rm $(shell find . -type f -name "*.dot")

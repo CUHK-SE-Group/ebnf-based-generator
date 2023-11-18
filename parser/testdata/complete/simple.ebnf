@@ -1,25 +1,25 @@
 expression = term
-    | expression, '+', term
-    | expression, '-', term
+    | (expression, '+', term)
+    | (expression, '-', term)
     ;
 
 term = factor
-    | term,'*', factor
-    | term,'/',factor
-    | term,'%',factor
+    | (term,'*', factor)
+    | (term,'/',factor)
+    | (term,'%',factor)
     ;
 
 factor
     = primary
-    | '-',factor
-    | '+',factor
+    | ('-',factor)
+    | ('+',factor)
     ;
 
 primary
     = IDENTIFIER
     | INTEGER
     | FLOATING_POINT_LITERAL
-    | '(',expression,')'
+    | ('(',expression,')')
     ;
 
 fake = '(',expression,')';
@@ -27,4 +27,3 @@ fake = '(',expression,')';
 IDENTIFIER = 'a'|'b'|'c'|'d';
 INTEGER = '1'|'2'|'3'|'4'|'5'|'6'|'7'|'8'|'9';
 FLOATING_POINT_LITERAL = '1.1'|'1.3'|'4.5';
-

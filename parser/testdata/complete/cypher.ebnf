@@ -398,7 +398,7 @@ SymbolicName = UnescapedSymbolicName
 
 UnescapedSymbolicName = IdentifierStart, { IdentifierPart } ;
 
-IdentifierStart = "i"
+IdentifierStart = 'i'
                 ;
 
 IdentifierPart = 'part'
@@ -472,4 +472,4 @@ X = 'X' ;
 
 Y = 'Y'  ;
 
-ANY = "testany"
+ANY = 'testany'
