@@ -4,6 +4,10 @@ import (
 	"github.com/CUHK-SE-Group/generic-generator/graph"
 	A "github.com/IBM/fp-go/array"
 	"github.com/google/uuid"
+	"log/slog"
+	"sort"
+	"strconv"
+	"strings"
 )
 
 type GrammarType int
@@ -99,6 +103,10 @@ func NewNode(g *Grammar, tp GrammarType, id, content string) *Node {
 }
 
 func (g *Node) GetType() GrammarType {
+	if g.internal == nil {
+		return 0
+	}
+
 	return g.internal.GetProperty(Prop).Type
 }
 
@@ -127,12 +135,24 @@ func (g *Node) AddSymbol(new *Node) int {
 	g.GetGrammar().internal.AddEdge(e)
 	return len(g.GetGrammar().internal.GetOutEdges(g.internal)) - 1
 }
-
+func getNumber(id string) int {
+	num1, err := strconv.Atoi(strings.Split(id, "#")[1])
+	if err != nil {
+		slog.Error("strconv atoi", "error", err)
+	}
+	return num1
+}
 func (g *Node) GetSymbols() []*Node {
 	f := func(edge graph.Edge[string, Property]) *Node {
 		return &Node{internal: edge.GetTo()}
 	}
-	return A.Map(f)(g.GetGrammar().internal.GetOutEdges(g.internal))
+	ori := A.Map(f)(g.GetGrammar().internal.GetOutEdges(g.internal))
+	sort.Slice(ori, func(i, j int) bool {
+		num1 := getNumber(ori[i].GetID())
+		num2 := getNumber(ori[j].GetID())
+		return num1 < num2
+	})
+	return ori
 }
 
 func (g *Node) GetSymbol(idx int) *Node {

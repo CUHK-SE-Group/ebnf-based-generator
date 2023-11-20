@@ -2,11 +2,9 @@ package schemas
 
 import (
 	"errors"
+	"log/slog"
 	"math/rand"
 	"regexp"
-
-	"github.com/golang/glog"
-	"github.com/lucasjones/reggen"
 )
 
 const (
@@ -18,6 +16,7 @@ const (
 	TerminalHandlerName = "terminal_handler"
 	SubHandlerName      = "sub_handler"
 	BraceHandlerName    = "brace_handler"
+	RepHandlerName      = "rep_handler"
 )
 
 var errViolateBuildIn = errors.New("can not replace build-in handler func")
@@ -95,13 +94,14 @@ func (h *IDHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
 	ctx.SymbolStack.Pop()
 
 	if len(cur.GetSymbols()) != 0 {
-		glog.Error("Pattern mismatched[Identifier]")
+		slog.Error("Pattern mismatched[Identifier]")
 		return
 	}
 	node := ctx.grammarMap.GetNode(cur.GetContent())
-	if node == nil {
-		glog.Errorf("The identifier [%v] does not Existed", cur.GetContent())
-		panic("The identifier does not Existed")
+	if node.internal == nil {
+		slog.Error("The identifier does not Existed", "id", cur.GetContent())
+		ctx.Result += cur.GetContent()
+		return // omit error
 	}
 	ctx.SymbolStack.Push(node)
 	chain.Next(ctx, cb)
@@ -117,6 +117,30 @@ func (h *IDHandler) Name() string {
 
 func (h *IDHandler) Type() GrammarType {
 	return GrammarID
+}
+
+type RepHandler struct {
+}
+
+func (r *RepHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
+	cur := ctx.SymbolStack.Top()
+	ctx.SymbolStack.Pop()
+	for i := 0; i < rand.Intn(3); i++ {
+		ctx.SymbolStack.Push(cur.GetSymbols()...)
+	}
+	chain.Next(ctx, cb)
+}
+
+func (r *RepHandler) HookRoute() []regexp.Regexp {
+	return make([]regexp.Regexp, 0)
+}
+
+func (r *RepHandler) Name() string {
+	return RepHandlerName
+}
+
+func (r *RepHandler) Type() GrammarType {
+	return GrammarREP
 }
 
 type TermHandler struct {
@@ -141,7 +165,7 @@ func (h *TermHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
 	ctx.SymbolStack.Pop()
 
 	if len(cur.GetSymbols()) != 0 {
-		glog.Error("Pattern mismatched[Terminal]")
+		slog.Error("Pattern mismatched[Terminal]")
 		return
 	}
 	result := ""
@@ -149,13 +173,13 @@ func (h *TermHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
 	if h.isTermPreserve(cur) {
 		result = regex
 	} else {
-		var err error
-		result, err = reggen.Generate(regex, 1)
-		if err != nil {
-			glog.Error(err.Error())
-			return
-		}
-
+		result = regex
+		//var err error
+		//result, err = reggen.Generate(regex, 1)
+		//if err != nil {
+		//	slog.Error("generate regexp", "exp", regex, "error", err.Error())
+		//	return
+		//}
 	}
 	ctx.Result += result
 	chain.Next(ctx, cb)
@@ -181,7 +205,7 @@ func (h *BracketHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack)
 	ctx.SymbolStack.Pop()
 
 	if len(cur.GetSymbols()) == 0 {
-		glog.Error("Pattern mismatched[Identifier]")
+		slog.Error("Pattern mismatched[Identifier]")
 		return
 	}
 	for i := len(cur.GetSymbols()) - 1; i >= 0; i-- {
@@ -234,7 +258,7 @@ func (h *BraceHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
 	ctx.SymbolStack.Pop()
 
 	if len(cur.GetSymbols()) == 0 {
-		glog.Error("Pattern mismatched[Identifier]")
+		slog.Error("Pattern mismatched[Identifier]")
 		return
 	}
 
@@ -260,7 +284,6 @@ type SubHandler struct {
 }
 
 func (h *SubHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
-	//_ := ctx.SymbolStack.Top()
 	ctx.SymbolStack.Pop()
 	chain.Next(ctx, cb)
 }

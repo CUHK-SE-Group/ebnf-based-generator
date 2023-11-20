@@ -11,32 +11,26 @@ import (
 )
 
 func TestDefaultHandler(t *testing.T) {
-	g, err := parser.Parse("parser/testdata/cypher.ebnf")
+	g, err := parser.Parse("./testdata/basic/basic_all.ebnf")
 	if err != nil {
 		panic(err)
 	}
-	chain, err := schemas.CreateChain("test", &schemas.CatHandler{}, &schemas.OrHandler{}, &schemas.IDHandler{}, &schemas.TermHandler{}, &schemas.BracketHandler{}, &schemas.ParenHandler{}, &schemas.BraceHandler{}, &schemas.SubHandler{})
+	chain, err := schemas.CreateChain("test", &schemas.CatHandler{}, &schemas.IDHandler{}, &schemas.SubHandler{}, &schemas.OrHandler{}, &schemas.TermHandler{}, &schemas.RepHandler{}, &schemas.BracketHandler{})
 	if err != nil {
 		panic(err)
 	}
-	ctx, err := schemas.NewContext(g, "Cypher")
+	ctx, err := schemas.NewContext(g, "test_production")
 	if err != nil {
 		panic(err)
 	}
 
 	for !ctx.GetFinish() {
-		//start := ctx.SymbolStack.Top()
 		chain.Next(ctx, func(result *schemas.Result) {
 			ctx = result.GetCtx()
 			ctx.HandlerIndex = 0
 			fmt.Println(ctx.Result)
 		})
-		//if ctx.SymbolStack.Top() == start {
-		//	glog.Errorf("generate failed, type:[%v], content:[%v]", ctx.SymbolStack.Top().GetType(), ctx.SymbolStack.Top().GetContent())
-		//	break
-		//}
 	}
-
 }
 
 type WeightedHandler struct {
@@ -75,7 +69,7 @@ func (h *WeightedHandler) Type() schemas.GrammarType {
 	return schemas.GrammarOR
 }
 func TestWeightedHandler(t *testing.T) {
-	g, err := parser.Parse("parser/testdata/simple.ebnf")
+	g, err := parser.Parse("./testdata/complete/simple.ebnf")
 	if err != nil {
 		panic(err)
 	}
@@ -83,7 +77,7 @@ func TestWeightedHandler(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	ctx, err := schemas.NewContext(g, "factor")
+	ctx, err := schemas.NewContext(g, "expression")
 	if err != nil {
 		panic(err)
 	}

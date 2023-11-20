@@ -10,11 +10,11 @@ type Stack struct {
 	trace []*Node
 }
 
-func (q *Stack) Push(g *Node) *Stack {
+func (q *Stack) Push(g ...*Node) *Stack {
 	if g == nil {
 		panic(g)
 	}
-	q.q = append(q.q, g)
+	q.q = append(q.q, g...)
 	return q
 }
 
