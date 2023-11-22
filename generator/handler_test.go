@@ -1,6 +1,7 @@
 package Generator
 
 import (
+	"context"
 	"fmt"
 	"github.com/CUHK-SE-Group/generic-generator/parser"
 	"github.com/CUHK-SE-Group/generic-generator/schemas"
@@ -19,7 +20,7 @@ func TestDefaultHandler(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	ctx, err := schemas.NewContext(g, "test_production")
+	ctx, err := schemas.NewContext(g, "test_production", context.Background())
 	if err != nil {
 		panic(err)
 	}
@@ -77,7 +78,7 @@ func TestWeightedHandler(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	ctx, err := schemas.NewContext(g, "expression")
+	ctx, err := schemas.NewContext(g, "expression", context.Background())
 	if err != nil {
 		panic(err)
 	}

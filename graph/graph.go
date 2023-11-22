@@ -173,3 +173,25 @@ func renderDOT[PropertyType any](w io.Writer, d description[PropertyType]) error
 
 	return tpl.Execute(w, d)
 }
+
+func GenerateCypher[EdgePropertyType any, VertexPropertyType any](graph Graph[EdgePropertyType, VertexPropertyType], f func(n Vertex[VertexPropertyType]) string) ([]string, []string) {
+	// Initialize strings to hold Cypher statements
+	var nodesCyphers []string
+	var edgesCyphers []string
+
+	// Generate Cypher for nodes
+	for _, node := range graph.GetAllVertices() {
+		// Add a Cypher statement for the current node
+		nodesCypher := f(node)
+		nodesCyphers = append(nodesCyphers, nodesCypher)
+	}
+
+	// Generate Cypher for edges
+	for _, edge := range graph.GetAllEdges() {
+		// Add a Cypher statement for the current edge
+		edgesCypher := ""
+		edgesCypher += fmt.Sprintf("MATCH (a {ID: '%s'}), (b {ID: '%s'}) CREATE (a)-[:child]->(b)", edge.GetFrom().GetID(), edge.GetTo().GetID())
+		edgesCyphers = append(edgesCyphers, edgesCypher)
+	}
+	return nodesCyphers, edgesCyphers
+}

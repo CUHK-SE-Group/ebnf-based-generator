@@ -1,9 +1,9 @@
 package schemas
 
 import (
+	"fmt"
 	"github.com/CUHK-SE-Group/generic-generator/graph"
 	A "github.com/IBM/fp-go/array"
-	"github.com/google/uuid"
 	"log/slog"
 	"sort"
 	"strconv"
@@ -75,6 +75,9 @@ func (g *Grammar) GetInternal() graph.Graph[string, Property] {
 }
 
 func (g *Grammar) GetNode(id string) *Node {
+	if g.internal.GetVertexById(id) == nil {
+		return nil
+	}
 	return &Node{internal: g.internal.GetVertexById(id)}
 }
 
@@ -106,7 +109,6 @@ func (g *Node) GetType() GrammarType {
 	if g.internal == nil {
 		return 0
 	}
-
 	return g.internal.GetProperty(Prop).Type
 }
 
@@ -131,7 +133,7 @@ func (g *Node) GetGrammar() *Grammar {
 }
 
 func (g *Node) AddSymbol(new *Node) int {
-	e := newEdge(uuid.NewString(), g, new)
+	e := newEdge(fmt.Sprintf("%s,%s", g.GetID(), new.GetID()), g, new)
 	g.GetGrammar().internal.AddEdge(e)
 	return len(g.GetGrammar().internal.GetOutEdges(g.internal)) - 1
 }

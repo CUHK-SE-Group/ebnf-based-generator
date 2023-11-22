@@ -227,33 +227,33 @@ func Parse(file string) (*schemas.Grammar, error) {
 	parser := ebnf.NewEBNFParser(stream)
 	listener := newEbnfListener()
 	antlr.ParseTreeWalkerDefault.Walk(listener, parser.Ebnf())
+
 	return listener.grammar, nil
 }
 
-func MergeProduction(p map[string]*schemas.Node, startSymbol string) *schemas.Grammar {
-	return nil
-	//root, ok := p[startSymbol]
-	//if !ok {
-	//	return nil
-	//}
-	//
-	//queue := make([]*schemas.Grammar, 0)
-	//queue = append(queue, root)
-	//visited := make([]*schemas.Grammar, 0)
-	//for len(queue) != 0 {
-	//	cur := queue[0]
-	//	queue = queue[1:]
-	//	if len(*cur.GetSymbols()) == 0 {
-	//		if cur.GetType() == schemas.GrammarID {
-	//			visited = append(visited, cur)
-	//		}
-	//	}
-	//	for _, v := range *cur.GetSymbols() {
-	//		queue = append(queue, v)
-	//	}
-	//}
-	//for _, v := range visited {
-	//	*v.GetSymbols() = append(*v.GetSymbols(), p[v.GetContent()])
-	//}
-	//return root
+func MergeProduction(p *schemas.Grammar, start string) *schemas.Grammar {
+	queue := []*schemas.Node{p.GetNode(start)}
+	visited := make(map[string]any)
+	productions := []*schemas.Node{p.GetNode(start)}
+	for len(queue) != 0 {
+		for _, n := range queue[0].GetSymbols() {
+			if n.GetType() == schemas.GrammarID {
+				productions = append(productions, n)
+				v := p.GetNode(fmt.Sprintf("%s#0", n.GetContent()))
+				if v != nil {
+					n.AddSymbol(v)
+					queue = append(queue, v)
+				} else {
+					fmt.Println()
+				}
+			}
+			if _, ok := visited[n.GetID()]; !ok {
+				queue = append(queue, n)
+				visited[n.GetID()] = ""
+			}
+		}
+		fmt.Println(queue[0].GetID())
+		queue = queue[1:]
+	}
+	return p
 }

@@ -58,20 +58,24 @@ type Context struct {
 	ProductionRoot *Node
 	Result         string
 	finish         bool
+	FinishCh       chan bool
 }
 
 func (c *Context) GetFinish() bool {
 	return c.finish
 }
-func NewContext(grammarMap *Grammar, startSymbol string) (*Context, error) {
+func NewContext(grammarMap *Grammar, startSymbol string, ctx context.Context) (*Context, error) {
 	node := grammarMap.GetNode(startSymbol)
-	if node == nil {
+	if node == nil || node.internal == nil {
 		return nil, errors.New("no such symbol")
 	}
+
 	return &Context{
 		SymCount:       map[string]int{},
 		grammarMap:     grammarMap,
+		Context:        ctx, // 使用带有超时的context
 		SymbolStack:    NewStack().Push(node),
 		ProductionRoot: node,
+		FinishCh:       make(chan bool, 1),
 	}, nil
 }
