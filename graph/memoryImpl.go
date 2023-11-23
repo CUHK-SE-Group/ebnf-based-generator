@@ -22,6 +22,7 @@ type MemGraph[EdgePropertyType any, VertexPropertyType any] struct {
 type VertexImpl[PropertyType any] struct {
 	id          string
 	propertyMap map[string]PropertyType
+	meta        any
 }
 
 type EdgeImpl[EdgePropertyType any, VertexPropertyType any] struct {
@@ -29,6 +30,7 @@ type EdgeImpl[EdgePropertyType any, VertexPropertyType any] struct {
 	from        Vertex[VertexPropertyType]
 	to          Vertex[VertexPropertyType]
 	propertyMap map[string]EdgePropertyType
+	meta        any
 }
 
 func NewGraph[EdgePropertyType any, VertexPropertyType any]() Graph[EdgePropertyType, VertexPropertyType] {
@@ -182,7 +184,12 @@ func (g *MemGraph[EdgePropertyType, VertexPropertyType]) GetAllEdges() []Edge[Ed
 func (n *VertexImpl[PropertyType]) SetID(id string) {
 	n.id = id
 }
-
+func (n *VertexImpl[PropertyType]) SetMeta(m any) {
+	n.meta = m
+}
+func (n *VertexImpl[PropertyType]) GetMeta() any {
+	return n.meta
+}
 func (n *VertexImpl[PropertyType]) SetProperty(key string, val PropertyType) {
 	n.propertyMap[key] = val
 }
@@ -235,4 +242,10 @@ func (e *EdgeImpl[EdgePropertyType, VertexPropertyType]) GetProperty(key string)
 
 func (e *EdgeImpl[EdgePropertyType, VertexPropertyType]) GetAllProperties() map[string]EdgePropertyType {
 	return e.propertyMap
+}
+func (e *EdgeImpl[EdgePropertyType, VertexPropertyType]) SetMeta(m any) {
+	e.meta = m
+}
+func (e *EdgeImpl[EdgePropertyType, VertexPropertyType]) GetMeta() any {
+	return e.meta
 }

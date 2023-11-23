@@ -45,6 +45,8 @@ type Edge[EdgePropertyType any, VertexPropertyType any] interface {
 	GetTo() Vertex[VertexPropertyType]
 	GetProperty(key string) EdgePropertyType
 	GetAllProperties() map[string]EdgePropertyType
+	SetMeta(m any)
+	GetMeta() any
 }
 
 type Vertex[VertexPropertyType any] interface {
@@ -53,6 +55,8 @@ type Vertex[VertexPropertyType any] interface {
 	GetID() string
 	GetProperty(key string) VertexPropertyType
 	GetAllProperties() map[string]VertexPropertyType
+	SetMeta(m any)
+	GetMeta() any
 }
 
 // Clone Ept: EdgePropertyType, Vpt: VertexPropertyType
