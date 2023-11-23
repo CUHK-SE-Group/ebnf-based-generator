@@ -50,8 +50,8 @@ func NewStack() *Stack {
 }
 
 type Context struct {
-	SymCount   map[string]int
-	grammarMap *Grammar
+	SymCount map[string]int
+	Grammar  *Grammar
 	context.Context
 	HandlerIndex   int
 	SymbolStack    *Stack
@@ -72,7 +72,7 @@ func NewContext(grammarMap *Grammar, startSymbol string, ctx context.Context) (*
 
 	return &Context{
 		SymCount:       map[string]int{},
-		grammarMap:     grammarMap,
+		Grammar:        grammarMap,
 		Context:        ctx, // 使用带有超时的context
 		SymbolStack:    NewStack().Push(node),
 		ProductionRoot: node,

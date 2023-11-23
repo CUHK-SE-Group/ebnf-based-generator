@@ -16,6 +16,11 @@ func parseAndVisualize(file string) {
 		return fmt.Sprintf("id: %s\n content: %s\n type: %s", v.GetID(), v.GetProperty(schemas.Prop).Content, schemas.GetGrammarTypeStr(v.GetProperty(schemas.Prop).Type))
 	})
 }
+func TestBasicBuildPath(t *testing.T) {
+	p, _ := Parse("./testdata/complete/cypher.ebnf")
+	tree := p.GetIndex("Cypher")
+	fmt.Println(tree.ToJSON())
+}
 
 func TestBasic(t *testing.T) {
 	parseAndVisualize("./testdata/basic/basic_all.ebnf")
@@ -45,5 +50,4 @@ func TestParseCalculator(t *testing.T) {
 
 func TestParseCypher(t *testing.T) {
 	parseAndVisualize("./testdata/complete/cypher.ebnf")
-
 }

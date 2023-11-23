@@ -97,7 +97,7 @@ func (h *IDHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
 		slog.Error("Pattern mismatched[Identifier]")
 		return
 	}
-	node := ctx.grammarMap.GetNode(cur.GetContent())
+	node := ctx.Grammar.GetNode(cur.GetContent())
 	if node.internal == nil {
 		slog.Error("The identifier does not Existed", "id", cur.GetContent())
 		ctx.Result += cur.GetContent()

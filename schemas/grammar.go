@@ -1,6 +1,7 @@
 package schemas
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/CUHK-SE-Group/generic-generator/graph"
 	A "github.com/IBM/fp-go/array"
@@ -27,6 +28,11 @@ const (
 	GrammarID
 	GrammarTerminal
 	GrammarChoice
+)
+const (
+	Prop    = "Property"
+	Index   = "index"
+	Visited = "visited_"
 )
 
 var typeStrRep = map[GrammarType]string{
@@ -55,10 +61,51 @@ type Property struct {
 	Gram    *Grammar
 	Content string
 }
+type TrieTree struct {
+	Root  *TrieNode
+	Index map[string]*TrieNode
+}
+type TrieNode struct {
+	Children map[string]*TrieNode `json:"children"`
+	IsEnd    bool                 `json:"-"`
+	Node     *Node
+}
 
-const (
-	Prop = "Property"
-)
+func (t *TrieNode) ToJSON() (string, error) {
+	type Alias TrieNode
+
+	data := make(map[string]interface{})
+	for key, child := range t.Children {
+		childJSON, err := child.ToJSON()
+		if err != nil {
+			return "", err
+		}
+		data[key] = json.RawMessage(childJSON)
+	}
+
+	jsonData, err := json.MarshalIndent(data, "", "\t")
+	if err != nil {
+		return "", err
+	}
+
+	return string(jsonData), nil
+}
+
+func NewTrieNode(node *Node) *TrieNode {
+	return &TrieNode{Children: make(map[string]*TrieNode), Node: node}
+}
+
+func (t *TrieNode) Insert(n *Node, path []string, index *map[string]*TrieNode) {
+	node := t
+	for _, element := range path {
+		if _, ok := node.Children[element]; !ok {
+			node.Children[element] = NewTrieNode(n)
+			(*index)[element] = node.Children[element]
+		}
+		node = node.Children[element]
+	}
+	node.IsEnd = true
+}
 
 type Grammar struct {
 	internal graph.Graph[string, Property]
@@ -79,6 +126,84 @@ func (g *Grammar) GetNode(id string) *Node {
 		return nil
 	}
 	return &Node{internal: g.internal.GetVertexById(id)}
+}
+func (g *Grammar) GetIndex(id string) *TrieNode {
+	if g.GetInternal().GetMetadata(Index) == nil {
+		g.BuildPath(id)
+	}
+	return g.GetInternal().GetMetadata(Index).(*TrieTree).Index[id]
+}
+func (g *Grammar) BuildPath(id string) {
+	root := g.GetNode(id)
+	if root == nil {
+		return
+	}
+	visited := make(map[string]bool)
+	trie := NewTrieNode(root)
+	index := &(map[string]*TrieNode{})
+	var dfs func(node *Node, path []string)
+	dfs = func(node *Node, path []string) {
+		if node == nil {
+			return
+		}
+		newPath := append(path, node.GetID())
+
+		if node.GetType() == GrammarTerminal {
+			trie.Insert(node, newPath, index)
+		} else if node.GetType() == GrammarID {
+			// do not visit back to the identifier, but we will add a notice
+			childNode := g.GetNode(node.GetContent())
+			if childNode == nil {
+				fmt.Println("empty node")
+				return
+			}
+			if visited[childNode.GetID()] {
+				trie.Insert(childNode, append(path, Visited+node.GetContent()), index)
+			}
+			if !visited[childNode.GetID()] {
+				visited[childNode.GetID()] = true
+				dfs(childNode, newPath)
+			}
+		} else {
+			for _, child := range node.GetSymbols() {
+				dfs(child, newPath)
+			}
+		}
+	}
+
+	dfs(root, []string{})
+	updateVisitedNodes(trie)
+	tree := &TrieTree{
+		Root:  trie,
+		Index: *index,
+	}
+
+	g.GetInternal().SetMetadata(Index, tree)
+}
+
+func updateVisitedNodes(node *TrieNode) bool {
+	if node == nil || len(node.Children) == 0 {
+		return false
+	}
+
+	allChildrenVisited := true
+	anyChildVisited := false
+	for key, child := range node.Children {
+		childVisited := updateVisitedNodes(child)
+		if childVisited && strings.HasPrefix(key, Visited) {
+			anyChildVisited = true
+		}
+		allChildrenVisited = allChildrenVisited && childVisited
+	}
+
+	// 根据节点的状态决定是否标记为 Visited
+	if (node.Node.GetType() == GrammarOR && allChildrenVisited) || (node.Node.GetType() == GrammarCatenate && anyChildVisited) {
+		// 更新当前节点为 Visited
+		// 这可能需要修改 TrieNode 的结构或添加一个标记
+		return true
+	}
+
+	return false
 }
 
 type Node struct {
