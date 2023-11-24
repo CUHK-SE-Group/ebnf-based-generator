@@ -6,6 +6,7 @@ import (
 	"github.com/CUHK-SE-Group/generic-generator/graph"
 	A "github.com/IBM/fp-go/array"
 	"log/slog"
+	"math"
 	"sort"
 	"strconv"
 	"strings"
@@ -30,9 +31,10 @@ const (
 	GrammarChoice
 )
 const (
-	Prop    = "Property"
-	Index   = "index"
-	Visited = "visited_"
+	Prop     = "Property"
+	Index    = "index"
+	Visited  = "visited_"
+	Distance = "distance"
 )
 
 var typeStrRep = map[GrammarType]string{
@@ -108,12 +110,19 @@ func (t *TrieNode) Insert(n *Node, path []string, index *map[string]*TrieNode) {
 }
 
 type Grammar struct {
-	internal graph.Graph[string, Property]
+	internal  graph.Graph[string, Property]
+	startSym  string
+	terminals []string // cache
 }
 
-func NewGrammar() *Grammar {
+func NewGrammar(start ...string) *Grammar {
+	var st string
+	if len(start) != 0 {
+		st = start[0]
+	}
 	newG := &Grammar{
 		internal: graph.NewGraph[string, Property](),
+		startSym: st,
 	}
 	return newG
 }
@@ -127,6 +136,57 @@ func (g *Grammar) GetNode(id string) *Node {
 	}
 	return &Node{internal: g.internal.GetVertexById(id)}
 }
+
+func (p *Grammar) MergeProduction() {
+	start := p.startSym
+	queue := []*Node{p.GetNode(start)}
+	visited := make(map[string]any)
+	productions := []*Node{p.GetNode(start)}
+	for len(queue) != 0 {
+		for _, n := range queue[0].GetSymbols() {
+			if n.GetType() == GrammarID {
+				productions = append(productions, n)
+				v := p.GetNode(fmt.Sprintf("%s", n.GetContent()))
+				if v != nil {
+					n.AddSymbol(v)
+					queue = append(queue, v)
+				}
+			}
+			if _, ok := visited[n.GetID()]; !ok {
+				queue = append(queue, n)
+				visited[n.GetID()] = ""
+			}
+		}
+		queue = queue[1:]
+	}
+}
+
+// QueryDistance query for the largest and minimum distance to the terminal
+func (g *Grammar) QueryDistance(id string) (float64, float64) {
+	if g.internal.GetMetadata(Distance) == nil {
+		//tmpG := graph.Clone[string, Property](g.internal, graph.NewGraph[string, Property], graph.NewEdge[string, Property], graph.NewVertex[Property])
+		//gg := &Grammar{internal: tmpG, startSym: g.startSym}
+		g.MergeProduction()
+		distances := graph.FloydAlgorithm(g.internal)
+		g.internal.SetMetadata(Distance, distances)
+	}
+	dis := g.internal.GetMetadata(Distance).(map[string]map[string]float64)
+	if g.terminals == nil || len(g.terminals) == 0 {
+		g.terminals = make([]string, 0)
+		for _, v := range g.GetInternal().GetAllVertices() {
+			if v.GetProperty(Prop).Type == GrammarTerminal {
+				g.terminals = append(g.terminals, v.GetID())
+			}
+		}
+	}
+	mi, ma := math.Inf(1), math.Inf(-1)
+	for _, v := range g.terminals {
+		mi = min(dis[id][v], mi)
+		ma = max(dis[id][v], ma)
+	}
+	return mi, ma
+}
+
 func (g *Grammar) GetIndex(id string) *TrieNode {
 	if g.GetInternal().GetMetadata(Index) == nil {
 		g.BuildPath(id)

@@ -93,10 +93,10 @@ func (h *IDHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
 	cur := ctx.SymbolStack.Top()
 	ctx.SymbolStack.Pop()
 
-	if len(cur.GetSymbols()) != 0 {
-		slog.Error("Pattern mismatched[Identifier]")
-		return
-	}
+	//if len(cur.GetSymbols()) != 0 {
+	//	slog.Error("Pattern mismatched[Identifier]")
+	//	//return
+	//}
 	node := ctx.Grammar.GetNode(cur.GetContent())
 	if node.internal == nil {
 		slog.Error("The identifier does not Existed", "id", cur.GetContent())
@@ -125,7 +125,7 @@ type RepHandler struct {
 func (r *RepHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
 	cur := ctx.SymbolStack.Top()
 	ctx.SymbolStack.Pop()
-	for i := 0; i < rand.Intn(3); i++ {
+	for i := 0; i < rand.Intn(1); i++ {
 		ctx.SymbolStack.Push(cur.GetSymbols()...)
 	}
 	chain.Next(ctx, cb)
@@ -201,16 +201,16 @@ type BracketHandler struct {
 }
 
 func (h *BracketHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
-	cur := ctx.SymbolStack.Top()
+	//cur := ctx.SymbolStack.Top()
 	ctx.SymbolStack.Pop()
 
-	if len(cur.GetSymbols()) == 0 {
-		slog.Error("Pattern mismatched[Identifier]")
-		return
-	}
-	for i := len(cur.GetSymbols()) - 1; i >= 0; i-- {
-		ctx.SymbolStack.Push(cur.GetSymbol(i))
-	}
+	//if len(cur.GetSymbols()) == 0 {
+	//	slog.Error("Pattern mismatched[Identifier]")
+	//	return
+	//}
+	//for i := len(cur.GetSymbols()) - 1; i >= 0; i-- {
+	//	ctx.SymbolStack.Push(cur.GetSymbol(i))
+	//}
 	chain.Next(ctx, cb)
 }
 

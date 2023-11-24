@@ -41,7 +41,7 @@ type ebnfListener struct {
 	popStack          []int
 }
 
-func newEbnfListener() *ebnfListener {
+func newEbnfListener(startSym string) *ebnfListener {
 	textHandler := slog.NewTextHandler(os.Stderr, nil)
 	callerInfoHandler := log.NewCallerInfoHandler(textHandler)
 	logger := slog.New(callerInfoHandler)
@@ -51,7 +51,7 @@ func newEbnfListener() *ebnfListener {
 		currentProduction: &schemas.Node{},
 		stack:             []*schemas.Node{},
 		logger:            logger,
-		grammar:           schemas.NewGrammar(),
+		grammar:           schemas.NewGrammar(startSym),
 		productions:       map[string]*schemas.Node{},
 	}
 	return listener
@@ -217,7 +217,7 @@ func (l *ebnfListener) ExitBRACKET(c *ebnf.BRACKETContext) {
 	l.pop()
 }
 
-func Parse(file string) (*schemas.Grammar, error) {
+func Parse(file string, startSym string) (*schemas.Grammar, error) {
 	is, err := antlr.NewFileStream(file)
 	if err != nil {
 		return nil, err
@@ -225,35 +225,8 @@ func Parse(file string) (*schemas.Grammar, error) {
 	lexer := ebnf.NewEBNFLexer(is)
 	stream := antlr.NewCommonTokenStream(lexer, antlr.TokenDefaultChannel)
 	parser := ebnf.NewEBNFParser(stream)
-	listener := newEbnfListener()
+	listener := newEbnfListener(startSym)
 	antlr.ParseTreeWalkerDefault.Walk(listener, parser.Ebnf())
 
 	return listener.grammar, nil
-}
-
-func MergeProduction(p *schemas.Grammar, start string) *schemas.Grammar {
-	queue := []*schemas.Node{p.GetNode(start)}
-	visited := make(map[string]any)
-	productions := []*schemas.Node{p.GetNode(start)}
-	for len(queue) != 0 {
-		for _, n := range queue[0].GetSymbols() {
-			if n.GetType() == schemas.GrammarID {
-				productions = append(productions, n)
-				v := p.GetNode(fmt.Sprintf("%s#0", n.GetContent()))
-				if v != nil {
-					n.AddSymbol(v)
-					queue = append(queue, v)
-				} else {
-					fmt.Println()
-				}
-			}
-			if _, ok := visited[n.GetID()]; !ok {
-				queue = append(queue, n)
-				visited[n.GetID()] = ""
-			}
-		}
-		fmt.Println(queue[0].GetID())
-		queue = queue[1:]
-	}
-	return p
 }

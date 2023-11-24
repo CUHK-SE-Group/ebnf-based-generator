@@ -10,14 +10,14 @@ import (
 )
 
 func parseAndVisualize(file string) {
-	productions, _ := Parse(file)
+	productions, _ := Parse(file, "")
 	filenameWithoutExt := file[:len(file)-len(filepath.Ext(file))]
 	graph.Visualize(productions.GetInternal(), filepath.Join(filenameWithoutExt+".dot"), func(v graph.Vertex[schemas.Property]) string {
 		return fmt.Sprintf("id: %s\n content: %s\n type: %s", v.GetID(), v.GetProperty(schemas.Prop).Content, schemas.GetGrammarTypeStr(v.GetProperty(schemas.Prop).Type))
 	})
 }
 func TestBasicBuildPath(t *testing.T) {
-	p, _ := Parse("./testdata/complete/cypher.ebnf")
+	p, _ := Parse("./testdata/complete/cypher.ebnf", "")
 	tree := p.GetIndex("Cypher")
 	fmt.Println(tree.ToJSON())
 }
