@@ -83,10 +83,19 @@ func TestIdentifyCyclesAndInitializeProbabilities(t *testing.T) {
 }
 func TestUpdateNodeProbability(t *testing.T) {
 	g, _ := newGraph()
-	// 更新 node1 的概率
-	identifyCyclesAndInitializeProbabilities(g, "vertex0")
+	//// 更新 node1 的概率
+	//identifyCyclesAndInitializeProbabilities(g, "vertex0")
+	//
+	//updateProbabilitiesUntilConvergence(g, 1000)
+	Visualize(g, "fig1.dot", nil)
 
-	updateProbabilitiesUntilConvergence(g, 1000)
-
-	fmt.Println(g)
+	ssc, newg := TarjanSCC(g)
+	Visualize(newg, "fig.dot", nil)
+	fmt.Println(ssc, newg)
+}
+func TestFloydAlgorithm(t *testing.T) {
+	g, _ := newGraph()
+	weight := FloydAlgorithm(g)
+	fmt.Println(weight)
+	Visualize(g, "fig.dot", nil)
 }
