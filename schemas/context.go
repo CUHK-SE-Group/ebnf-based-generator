@@ -43,7 +43,9 @@ func (q *Stack) Empty() bool {
 func (q *Stack) GetTrace() []*Node {
 	return q.trace
 }
-
+func (q *Stack) GetStack() []*Node {
+	return q.q
+}
 func NewStack() *Stack {
 	return &Stack{q: make([]*Node, 0),
 		trace: make([]*Node, 0)}
