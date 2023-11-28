@@ -12,7 +12,7 @@ import (
 )
 
 func TestDefaultHandler(t *testing.T) {
-	g, err := parser.Parse("./testdata/basic/basic_all.ebnf")
+	g, err := parser.Parse("./testdata/complete/tinyc.ebnf", "program")
 	if err != nil {
 		panic(err)
 	}
@@ -20,7 +20,7 @@ func TestDefaultHandler(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	ctx, err := schemas.NewContext(g, "test_production", context.Background())
+	ctx, err := schemas.NewContext(g, "program", context.Background())
 	if err != nil {
 		panic(err)
 	}
@@ -70,7 +70,7 @@ func (h *WeightedHandler) Type() schemas.GrammarType {
 	return schemas.GrammarOR
 }
 func TestWeightedHandler(t *testing.T) {
-	g, err := parser.Parse("./testdata/complete/simple.ebnf")
+	g, err := parser.Parse("./testdata/complete/simple.ebnf", "")
 	if err != nil {
 		panic(err)
 	}
