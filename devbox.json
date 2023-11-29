@@ -1,0 +1,13 @@
+{
+  "packages": ["go_1_21@latest"],
+  "shell": {
+    "init_hook": [
+      "echo 'Welcome to devbox!'"
+    ],
+    "scripts": {
+      "test": [
+        "echo \"Error: no test specified\" && exit 1"
+      ]
+    }
+  }
+}
