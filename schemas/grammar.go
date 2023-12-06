@@ -131,10 +131,10 @@ func (g *Grammar) GetInternal() graph.Graph[string, Property] {
 }
 
 func (g *Grammar) GetNode(id string) *Node {
-	if g.internal.GetVertexById(id) == nil {
-		return nil
+	if inter := g.internal.GetVertexById(id); inter != nil {
+		return &Node{internal: inter}
 	}
-	return &Node{internal: g.internal.GetVertexById(id)}
+	return nil
 }
 
 func (p *Grammar) MergeProduction() {

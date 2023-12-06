@@ -19,7 +19,7 @@ func TestDefaultHandler(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	ctx, err := schemas.NewContext(g, "program", context.Background())
+	ctx, err := schemas.NewContext(g, "program", context.Background(), nil)
 	if err != nil {
 		panic(err)
 	}
@@ -83,7 +83,7 @@ func TestWeightedHandler(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	ctx, err := schemas.NewContext(g, "program", context.Background())
+	ctx, err := schemas.NewContext(g, "program", context.Background(), nil)
 	if err != nil {
 		panic(err)
 	}

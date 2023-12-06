@@ -3,6 +3,7 @@ package schemas
 import (
 	"context"
 	"errors"
+	"github.com/hashicorp/go-memdb"
 )
 
 type Stack struct {
@@ -52,8 +53,7 @@ func NewStack() *Stack {
 }
 
 type Context struct {
-	SymCount map[string]int
-	Grammar  *Grammar
+	Grammar *Grammar
 	context.Context
 	HandlerIndex   int
 	SymbolStack    *Stack
@@ -61,23 +61,58 @@ type Context struct {
 	Result         string
 	finish         bool
 	FinishCh       chan bool
+	Storage        *memdb.MemDB
+}
+
+type NodeRuntimeInfo struct {
+	Count int
+	ID    string
 }
 
 func (c *Context) GetFinish() bool {
 	return c.finish
 }
-func NewContext(grammarMap *Grammar, startSymbol string, ctx context.Context) (*Context, error) {
+func NewContext(grammarMap *Grammar, startSymbol string, ctx context.Context, gendb func() *memdb.MemDB) (*Context, error) {
 	node := grammarMap.GetNode(startSymbol)
-	if node == nil || node.internal == nil {
+	if node == nil {
 		return nil, errors.New("no such symbol")
+	}
+	var db *memdb.MemDB
+	var err error
+	if gendb == nil {
+		schema := &memdb.DBSchema{
+			Tables: map[string]*memdb.TableSchema{
+				"nodeRuntimeInfo": &memdb.TableSchema{
+					Name: "nodeRuntimeInfo",
+					Indexes: map[string]*memdb.IndexSchema{
+						"id": &memdb.IndexSchema{
+							Name:    "id",
+							Unique:  true,
+							Indexer: &memdb.StringFieldIndex{Field: "ID"},
+						},
+						"count": &memdb.IndexSchema{
+							Name:    "count",
+							Unique:  false,
+							Indexer: &memdb.IntFieldIndex{Field: "Count"},
+						},
+					},
+				},
+			},
+		}
+		db, err = memdb.NewMemDB(schema)
+		if err != nil {
+			panic(err)
+		}
+	} else {
+		db = gendb()
 	}
 
 	return &Context{
-		SymCount:       map[string]int{},
 		Grammar:        grammarMap,
 		Context:        ctx, // 使用带有超时的context
 		SymbolStack:    NewStack().Push(node),
 		ProductionRoot: node,
 		FinishCh:       make(chan bool, 1),
+		Storage:        db,
 	}, nil
 }
