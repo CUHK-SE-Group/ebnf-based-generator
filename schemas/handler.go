@@ -2,7 +2,9 @@ package schemas
 
 import (
 	"errors"
+	"github.com/CUHK-SE-Group/generic-generator/schemas/query"
 	"log/slog"
+	"math"
 	"math/rand"
 	"regexp"
 )
@@ -17,6 +19,7 @@ const (
 	SubHandlerName      = "sub_handler"
 	BraceHandlerName    = "brace_handler"
 	RepHandlerName      = "rep_handler"
+	TraceHandlerName    = "trace_handler"
 )
 
 var errViolateBuildIn = errors.New("can not replace build-in handler func")
@@ -71,6 +74,7 @@ func (h *OrHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
 	ctx.SymbolStack.Pop()
 	idx := rand.Int() % len(cur.GetSymbols())
 	ctx.SymbolStack.Push((cur.GetSymbols())[idx])
+	ctx.VisitedEdge[GetEdgeID(cur.GetID(), (cur.GetSymbols())[idx].GetID())]++
 	chain.Next(ctx, cb)
 }
 
@@ -161,6 +165,11 @@ func (h *TermHandler) stripQuote(content string) string {
 }
 
 func (h *TermHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
+	for key, fn := range FirstPlaceNode {
+		if query.MatchPattern(ctx.Trace, key) {
+			ctx = fn(ctx)
+		}
+	}
 	cur := ctx.SymbolStack.Top()
 	ctx.SymbolStack.Pop()
 
@@ -298,4 +307,23 @@ func (h *SubHandler) Name() string {
 
 func (h *SubHandler) Type() GrammarType {
 	return GrammarSUB
+}
+
+type TraceHandler struct {
+}
+
+func (h *TraceHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
+	chain.Next(ctx, cb)
+}
+
+func (h *TraceHandler) HookRoute() []regexp.Regexp {
+	return make([]regexp.Regexp, 0)
+}
+
+func (h *TraceHandler) Name() string {
+	return TraceHandlerName
+}
+
+func (h *TraceHandler) Type() GrammarType {
+	return math.MaxInt
 }

@@ -4,11 +4,13 @@ import (
 	"context"
 	"errors"
 	"github.com/hashicorp/go-memdb"
+	"strings"
 )
 
 type Stack struct {
-	q     []*Node
-	trace []*Node
+	q               []*Node
+	trace           []*Node
+	ProductionTrace []string
 }
 
 func (q *Stack) Push(g ...*Node) *Stack {
@@ -20,10 +22,23 @@ func (q *Stack) Push(g ...*Node) *Stack {
 }
 
 func (q *Stack) Pop() *Stack {
-	q.trace = append(q.trace, q.q[len(q.q)-1])
+	curSym := q.q[len(q.q)-1]
+	q.trace = append(q.trace, curSym)
+	lastSym := ""
+	if len(q.ProductionTrace) > 0 {
+		lastSym = q.ProductionTrace[len(q.ProductionTrace)-1]
+	}
+
+	if len(q.ProductionTrace) == 0 || lastSym == curSym.GetID() {
+		q.ProductionTrace = append(q.ProductionTrace, curSym.GetID())
+	}
+	if lastSym != curSym.GetID() && !strings.HasPrefix(curSym.GetID(), lastSym) {
+		q.ProductionTrace = append(q.ProductionTrace, strings.Split(curSym.GetID(), "#")[0])
+	}
 	q.q = q.q[:len(q.q)-1]
 	return q
 }
+
 func (q *Stack) Top() *Node {
 	if len(q.q) > 0 {
 		return q.q[len(q.q)-1]
@@ -48,8 +63,11 @@ func (q *Stack) GetStack() []*Node {
 	return q.q
 }
 func NewStack() *Stack {
-	return &Stack{q: make([]*Node, 0),
-		trace: make([]*Node, 0)}
+	return &Stack{
+		q:               make([]*Node, 0),
+		trace:           make([]*Node, 0),
+		ProductionTrace: make([]string, 0),
+	}
 }
 
 type Context struct {
@@ -62,11 +80,15 @@ type Context struct {
 	finish         bool
 	FinishCh       chan bool
 	Storage        *memdb.MemDB
+
+	VisitedEdge map[string]int
+	Trace       []string
 }
 
 type NodeRuntimeInfo struct {
-	Count int
-	ID    string
+	Count        int
+	ID           string
+	SampledValue []string
 }
 
 func (c *Context) GetFinish() bool {
@@ -114,5 +136,7 @@ func NewContext(grammarMap *Grammar, startSymbol string, ctx context.Context, ge
 		ProductionRoot: node,
 		FinishCh:       make(chan bool, 1),
 		Storage:        db,
+		Trace:          make([]string, 0),
+		VisitedEdge:    map[string]int{},
 	}, nil
 }

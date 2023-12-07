@@ -23,8 +23,8 @@ func parseAndVisualize(file string) {
 	})
 }
 func TestBasicBuildPath(t *testing.T) {
-	p, _ := Parse("./testdata/complete/cypher.ebnf", "")
-	tree := p.GetIndex("Cypher")
+	p, _ := Parse("./testdata/complete/tinyc.ebnf", "")
+	tree := p.GetIndex("program")
 	fmt.Println(tree.ToJSON())
 }
 

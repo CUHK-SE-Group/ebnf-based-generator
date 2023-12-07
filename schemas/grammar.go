@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type GrammarType int
@@ -58,10 +59,11 @@ func GetGrammarTypeStr(t GrammarType) string {
 }
 
 type Property struct {
-	Type    GrammarType
-	Root    *Node
-	Gram    *Grammar
-	Content string
+	Type               GrammarType
+	Root               *Node
+	Gram               *Grammar
+	Content            string
+	DistanceToTerminal int
 }
 type TrieTree struct {
 	Root  *TrieNode
@@ -266,6 +268,102 @@ func updateVisitedNodes(node *TrieNode) bool {
 	return false
 }
 
+func (g *Grammar) BuildShortestNotation() {
+	terminals := make([]graph.Vertex[Property], 0)
+	distance := g.BuildShortestNotation1()
+
+	for _, v := range g.GetInternal().GetAllVertices() {
+		if v.GetProperty(Prop).Type == GrammarTerminal {
+			edges := g.internal.GetInEdges(v)
+			allTerminal := true
+			for _, e := range edges {
+				father := e.GetFrom()
+				edges1 := g.internal.GetOutEdges(father)
+				for _, e1 := range edges1 {
+					if e1.GetTo().GetProperty(Prop).Type != GrammarTerminal {
+						allTerminal = false
+						break
+					}
+				}
+
+			}
+			if allTerminal {
+				terminals = append(terminals, v)
+			}
+		}
+	}
+
+	for _, v := range g.GetInternal().GetAllVertices() {
+		if v.GetProperty(Prop).Type == GrammarTerminal {
+			continue
+		}
+		prop := v.GetProperty(Prop)
+		prop.DistanceToTerminal = math.MaxInt
+		for _, term := range terminals {
+			prop.DistanceToTerminal = min(int(distance[v.GetID()][term.GetID()]), prop.DistanceToTerminal)
+		}
+		v.SetProperty(Prop, prop)
+	}
+}
+func (g *Grammar) BuildShortestNotation1() map[string]map[string]float64 {
+	t1 := time.Now()
+	defer func() {
+		duration := time.Since(t1)
+		fmt.Println(duration)
+	}()
+	vertices := g.internal.GetAllVertices()
+	numVertices := len(vertices)
+	vertexMap := make(map[string]int) // 用于映射顶点 ID 到其索引
+	for i, vertex := range vertices {
+		vertexMap[vertex.GetID()] = i
+	}
+
+	// 初始化距离矩阵
+	dist := make([][]float64, numVertices)
+	for i := range dist {
+		dist[i] = make([]float64, numVertices)
+		for j := range dist[i] {
+			if i == j {
+				dist[i][j] = 0
+			} else {
+				dist[i][j] = math.Inf(1)
+			}
+		}
+	}
+
+	// 设置初始边的权重
+	for _, edge := range g.internal.GetAllEdges() {
+		fromID := edge.GetFrom().GetID()
+		toID := edge.GetTo().GetID()
+		weight := 10.0
+		if edge.GetTo().GetProperty(Prop).Type == GrammarProduction {
+			weight = 1.0
+		}
+		dist[vertexMap[fromID]][vertexMap[toID]] = weight
+	}
+
+	// 应用 Floyd 算法
+	for k := 0; k < numVertices; k++ {
+		for i := 0; i < numVertices; i++ {
+			for j := 0; j < numVertices; j++ {
+				if dist[i][k]+dist[k][j] < dist[i][j] {
+					dist[i][j] = dist[i][k] + dist[k][j]
+				}
+			}
+		}
+	}
+
+	// 转换为 map[string]map[string]float64
+	distMap := make(map[string]map[string]float64)
+	for i, vi := range vertices {
+		distMap[vi.GetID()] = make(map[string]float64)
+		for j, vj := range vertices {
+			distMap[vi.GetID()][vj.GetID()] = dist[i][j]
+		}
+	}
+	return distMap
+}
+
 type Node struct {
 	internal graph.Vertex[Property]
 }
@@ -318,7 +416,7 @@ func (g *Node) GetGrammar() *Grammar {
 }
 
 func (g *Node) AddSymbol(new *Node) int {
-	e := newEdge(fmt.Sprintf("%s,%s", g.GetID(), new.GetID()), g, new)
+	e := newEdge(GetEdgeID(g.GetID(), new.GetID()), g, new)
 	g.GetGrammar().internal.AddEdge(e)
 	return len(g.GetGrammar().internal.GetOutEdges(g.internal)) - 1
 }
@@ -352,4 +450,10 @@ func (g *Node) GetSymbol(idx int) *Node {
 
 func (g *Node) GetContent() string {
 	return g.internal.GetProperty(Prop).Content
+}
+func (g *Node) GetDistance() int {
+	return g.internal.GetProperty(Prop).DistanceToTerminal
+}
+func GetEdgeID(father string, child string) string {
+	return fmt.Sprintf("%s,%s", father, child)
 }

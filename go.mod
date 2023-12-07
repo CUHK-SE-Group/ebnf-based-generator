@@ -12,4 +12,5 @@ require (
 	github.com/IBM/fp-go v1.0.56
 	github.com/antlr4-go/antlr/v4 v4.13.0
 	github.com/hashicorp/go-memdb v1.3.4
+	github.com/lucasjones/reggen v0.0.0-20200904144131-37ba4fa293bb
 )
