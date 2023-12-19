@@ -29,7 +29,7 @@ func init() {
 type Action struct {
 	Type   ConsAction
 	Regexp *regexp.Regexp
-	Func   func(ctx *Context) *Context
+	Func   func(ctx *Context) (*Context, error)
 }
 
 type Constraint struct {

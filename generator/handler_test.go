@@ -14,15 +14,17 @@ import (
 
 func TestDefaultHandler(t *testing.T) {
 	cons := schemas.DefinedBeforeUse
-	cons.FirstNode = ""
-	cons.SecondNode = ""
+	cons.FirstNode = "expr/id"
+	cons.SecondNode = "id"
 
-	schemas.Register()
+	schemas.Register(cons)
 	g, err := parser.Parse("./testdata/complete/tinyc.ebnf", "program")
 	if err != nil {
 		panic(err)
 	}
-	chain, err := schemas.CreateChain("test", &schemas.CatHandler{}, &schemas.IDHandler{}, &schemas.SubHandler{}, &schemas.OrHandler{}, &schemas.TermHandler{}, &schemas.RepHandler{}, &schemas.BracketHandler{})
+	g.MergeProduction()
+	g.BuildShortestNotation()
+	chain, err := schemas.CreateChain("test", &schemas.TraceHandler{}, &schemas.CatHandler{}, &schemas.IDHandler{}, &schemas.SubHandler{}, &WeightedHandler{}, &schemas.TermHandler{}, &schemas.RepHandler{}, &schemas.BracketHandler{})
 	if err != nil {
 		panic(err)
 	}
@@ -51,32 +53,42 @@ func (h *WeightedHandler) Handle(chain *schemas.Chain, ctx *schemas.Context, cb 
 	}
 
 	ctx.SymbolStack.Pop()
-	sym := cur.GetSymbols()
-	candidates := make([]int, 0)
-	repechage := make([]int, 0)
-	for i, v := range sym {
-		if v.GetDistance() < cur.GetDistance() {
-			candidates = append(candidates, i)
-		} else {
-			repechage = append(repechage, i)
-		}
-	}
+	switch ctx.Mode {
+	case schemas.ShrinkMode:
 
-	idx := rand.Intn(len(candidates))
-	votes := 0
-	for i, v := range sym {
-		if i != candidates[idx] {
-			votes += ctx.VisitedEdge[schemas.GetEdgeID(cur.GetID(), v.GetID())]
+		sym := cur.GetSymbols()
+		candidates := make([]int, 0)
+		repechage := make([]int, 0)
+		for i, v := range sym {
+			if v.GetDistance() < cur.GetDistance() {
+				candidates = append(candidates, i)
+			} else {
+				repechage = append(repechage, i)
+			}
 		}
-	}
-	if ctx.VisitedEdge[schemas.GetEdgeID(cur.GetID(), sym[candidates[idx]].GetID())] > 5*votes {
-		// if it goes into this branch, it means it chooses too much times this path, which indicates that there is a big probability of circle
-		idx = rand.Intn(len(sym)) //then re-vote for all the branches
-		ctx.VisitedEdge[schemas.GetEdgeID(cur.GetID(), sym[idx].GetID())]++
-		ctx.SymbolStack.Push(sym[idx])
-	} else {
-		ctx.VisitedEdge[schemas.GetEdgeID(cur.GetID(), sym[candidates[idx]].GetID())]++
-		ctx.SymbolStack.Push(sym[candidates[idx]])
+		if len(candidates) == 0 {
+			candidates = repechage
+		}
+		idx := rand.Intn(len(candidates))
+		votes := 0
+		for i, v := range sym {
+			if i != candidates[idx] {
+				votes += ctx.VisitedEdge[schemas.GetEdgeID(cur.GetID(), v.GetID())]
+			}
+		}
+		if ctx.VisitedEdge[schemas.GetEdgeID(cur.GetID(), sym[candidates[idx]].GetID())] > 5*votes {
+			// if it goes into this branch, it means it chooses too much times this path, which indicates that there is a big probability of circle
+			idx = rand.Intn(len(sym)) //then re-vote for all the branches
+			ctx.VisitedEdge[schemas.GetEdgeID(cur.GetID(), sym[idx].GetID())]++
+			ctx.SymbolStack.Push(sym[idx])
+		} else {
+			ctx.VisitedEdge[schemas.GetEdgeID(cur.GetID(), sym[candidates[idx]].GetID())]++
+			ctx.SymbolStack.Push(sym[candidates[idx]])
+		}
+	default:
+		idx := rand.Int() % len(cur.GetSymbols())
+		ctx.SymbolStack.Push((cur.GetSymbols())[idx])
+		ctx.VisitedEdge[schemas.GetEdgeID(cur.GetID(), (cur.GetSymbols())[idx].GetID())]++
 	}
 
 	chain.Next(ctx, cb)

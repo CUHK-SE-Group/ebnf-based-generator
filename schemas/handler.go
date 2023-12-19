@@ -7,6 +7,7 @@ import (
 	"math"
 	"math/rand"
 	"regexp"
+	"strings"
 )
 
 const (
@@ -165,12 +166,34 @@ func (h *TermHandler) stripQuote(content string) string {
 }
 
 func (h *TermHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
+	cur := ctx.SymbolStack.Top()
 	for key, fn := range FirstPlaceNode {
-		if query.MatchPattern(ctx.Trace, key) {
+		if !strings.Contains(cur.GetID(), ctx.SymbolStack.ProductionTrace[len(ctx.SymbolStack.ProductionTrace)-1]) {
+			continue
+		}
+		if query.MatchPattern(ctx.SymbolStack.ProductionTrace, key) {
 			ctx = fn(ctx)
+			chain.Next(ctx, cb)
+			return
 		}
 	}
-	cur := ctx.SymbolStack.Top()
+	for key, fn := range SecondPlaceNode {
+		if !strings.Contains(cur.GetID(), ctx.SymbolStack.ProductionTrace[len(ctx.SymbolStack.ProductionTrace)-1]) {
+			continue
+		}
+		if query.MatchPattern(ctx.SymbolStack.ProductionTrace, key) {
+			var err error
+			ctx, err = fn.Func(ctx)
+			if err != nil {
+				if errors.Is(err, ErrSymbolNotFound) {
+					continue
+				}
+				panic(err)
+			}
+			chain.Next(ctx, cb)
+			return
+		}
+	}
 	ctx.SymbolStack.Pop()
 
 	if len(cur.GetSymbols()) != 0 {
@@ -183,12 +206,6 @@ func (h *TermHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
 		result = regex
 	} else {
 		result = regex
-		//var err error
-		//result, err = reggen.Generate(regex, 1)
-		//if err != nil {
-		//	slog.Error("generate regexp", "exp", regex, "error", err.Error())
-		//	return
-		//}
 	}
 	ctx.Result += result
 	chain.Next(ctx, cb)

@@ -11,12 +11,15 @@ func MatchPattern(path []string, pattern string) bool {
 }
 
 func matchPattern(pathParts []string, pattern []string) bool {
+	if len(pattern) == 0 || len(pathParts) == 0 {
+		return false
+	}
 	reversePattern(pattern)
 
 	var match func(int, int) bool
 	match = func(idx, patIdx int) bool {
 		if patIdx == len(pattern) {
-			return idx == -1
+			return true
 		}
 		if idx < 0 {
 			return false

@@ -7,6 +7,12 @@ import (
 	"strings"
 )
 
+type Mode int
+
+const (
+	ShrinkMode Mode = iota + 1
+)
+
 type Stack struct {
 	q               []*Node
 	trace           []*Node
@@ -82,13 +88,13 @@ type Context struct {
 	Storage        *memdb.MemDB
 
 	VisitedEdge map[string]int
-	Trace       []string
+	Mode        Mode
 }
 
 type NodeRuntimeInfo struct {
 	Count        int
 	ID           string
-	SampledValue []string
+	SampledValue map[string]int
 }
 
 func (c *Context) GetFinish() bool {
@@ -136,7 +142,6 @@ func NewContext(grammarMap *Grammar, startSymbol string, ctx context.Context, ge
 		ProductionRoot: node,
 		FinishCh:       make(chan bool, 1),
 		Storage:        db,
-		Trace:          make([]string, 0),
 		VisitedEdge:    map[string]int{},
 	}, nil
 }
