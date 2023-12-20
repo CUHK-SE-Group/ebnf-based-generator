@@ -17,7 +17,6 @@ func escapeQuotes(s string) string {
 func parseAndVisualize(file string) {
 	productions, _ := Parse(file, "program")
 	filenameWithoutExt := file[:len(file)-len(filepath.Ext(file))]
-	productions.MergeProduction()
 	graph.Visualize(productions.GetInternal(), filepath.Join(filenameWithoutExt+".dot"), func(v graph.Vertex[schemas.Property]) string {
 		return fmt.Sprintf("id: %s\n content: %s\n type: %s", v.GetID(), escapeQuotes(v.GetProperty(schemas.Prop).Content), schemas.GetGrammarTypeStr(v.GetProperty(schemas.Prop).Type))
 	})

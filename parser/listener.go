@@ -172,6 +172,15 @@ func (l *ebnfListener) ExitCHOICE(c *ebnf.CHOICEContext) {
 	l.pop()
 }
 
+func (l *ebnfListener) EnterBRACE(c *ebnf.BRACEContext) {
+	l.logger.Info("entered brace", fmt.Sprint(c.GetRuleIndex()), c.GetText())
+	l.addThenPush(schemas.NewNode(l.grammar, schemas.GrammarREP, l.generateId(), c.GetText()))
+}
+
+func (l *ebnfListener) ExitBRACE(c *ebnf.BRACEContext) {
+	l.pop()
+}
+
 func (l *ebnfListener) EnterREP(c *ebnf.REPContext) {
 	l.logger.Info("entered rep", fmt.Sprint(c.GetRuleIndex()), c.GetText())
 	if l.top().GetType() != schemas.GrammarChoice {

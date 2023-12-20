@@ -1,1 +1,1 @@
-test_unary_op = i+, {is}+, {really, a}-' ', {boring, work, to}*, write?, test*, cases-'a';
+test_unary_op = i+, {is}-, {really, a}-' ', {boring, work, to}*, write?, test*, cases-'a';
