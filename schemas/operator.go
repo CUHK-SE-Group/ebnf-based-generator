@@ -96,7 +96,50 @@ func init() {
 		},
 	}
 	MaxLimit = Constraint{
-		FirstOp:  nil,
-		SecondOp: Action{},
+		FirstOp: func(ctx *Context) *Context {
+			cur := ctx.SymbolStack.Top()
+			txn := ctx.Storage.Txn(true)
+			raw, err := txn.First("nodeRuntimeInfo", "id", trimNumber(cur.GetID()))
+			if err != nil {
+				panic(err)
+			}
+			var node *NodeRuntimeInfo
+			if raw == nil {
+				node = &NodeRuntimeInfo{
+					Count:        1,
+					ID:           trimNumber(cur.GetID()),
+					SampledValue: make(map[string]int),
+				}
+				fmt.Println("add a new symbol", trimNumber(cur.GetID()), cur.GetContent())
+			} else {
+				node = raw.(*NodeRuntimeInfo)
+			}
+			node.Count++
+			err = txn.Insert("nodeRuntimeInfo", node)
+			if err != nil {
+				panic(err)
+			}
+			txn.Commit()
+			return ctx
+		},
+		SecondOp: Action{
+			Type: FUNC,
+			Func: func(ctx *Context) (*Context, error) {
+				cur := ctx.SymbolStack.Top()
+				txn := ctx.Storage.Txn(false)
+				raw, err := txn.First("nodeRuntimeInfo", "id", trimNumber(cur.GetID()))
+				if err != nil {
+					panic(err)
+				}
+				if raw == nil {
+					return ctx, nil
+				}
+				node := raw.(*NodeRuntimeInfo)
+				if node.Count > 1 {
+					ctx.Mode = ShrinkMode
+				}
+				return ctx, nil
+			},
+		},
 	}
 }

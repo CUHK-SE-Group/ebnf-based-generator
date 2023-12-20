@@ -2,6 +2,7 @@ package schemas
 
 import (
 	"errors"
+	"fmt"
 	"github.com/CUHK-SE-Group/generic-generator/schemas/query"
 	"log/slog"
 	"math"
@@ -21,6 +22,7 @@ const (
 	BraceHandlerName    = "brace_handler"
 	RepHandlerName      = "rep_handler"
 	TraceHandlerName    = "trace_handler"
+	OptionHandlerName   = "option_handler"
 )
 
 var errViolateBuildIn = errors.New("can not replace build-in handler func")
@@ -343,4 +345,26 @@ func (h *TraceHandler) Name() string {
 
 func (h *TraceHandler) Type() GrammarType {
 	return math.MaxInt
+}
+
+type OptionHandler struct {
+}
+
+func (h *OptionHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
+	cur := ctx.SymbolStack.Top()
+	fmt.Println("dealing with", cur.GetContent())
+	ctx.SymbolStack.Pop()
+	chain.Next(ctx, cb)
+}
+
+func (h *OptionHandler) HookRoute() []regexp.Regexp {
+	return make([]regexp.Regexp, 0)
+}
+
+func (h *OptionHandler) Name() string {
+	return OptionHandlerName
+}
+
+func (h *OptionHandler) Type() GrammarType {
+	return GrammarChoice
 }
