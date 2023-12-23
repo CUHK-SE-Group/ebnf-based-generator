@@ -117,7 +117,7 @@ func (g *MemGraph[EdgePropertyType, VertexPropertyType]) GetEdgeById(id string) 
 }
 func (g *MemGraph[EdgePropertyType, VertexPropertyType]) AddEdge(edge Edge[EdgePropertyType, VertexPropertyType]) {
 	if _, ok := g.edgeMap[edge.GetID()]; ok {
-		slog.Warn("edge already exists", "id", edge.GetID(), "from", edge.GetFrom().GetID(), "to", edge.GetTo().GetID())
+		slog.Debug("edge already exists", "id", edge.GetID(), "from", edge.GetFrom().GetID(), "to", edge.GetTo().GetID())
 	}
 	g.edgeMap[edge.GetID()] = edge
 	if _, ok := g.vertexMap[edge.GetFrom().GetID()]; !ok {

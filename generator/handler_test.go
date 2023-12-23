@@ -1,6 +1,7 @@
 package Generator
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -8,43 +9,15 @@ import (
 	"github.com/CUHK-SE-Group/generic-generator/parser"
 	"github.com/CUHK-SE-Group/generic-generator/schemas"
 	"github.com/CUHK-SE-Group/generic-generator/schemas/query"
+	"log"
 	"math"
 	"math/rand"
+	"os/exec"
 	"regexp"
 	"strings"
 	"testing"
 	"time"
 )
-
-func TestDefaultHandler(t *testing.T) {
-	cons := schemas.DefinedBeforeUse
-	cons.FirstNode = "expr/id"
-	cons.SecondNode = "id"
-
-	schemas.Register(cons)
-	g, err := parser.Parse("./testdata/complete/tinyc.ebnf", "program")
-	if err != nil {
-		panic(err)
-	}
-	g.MergeProduction()
-	g.BuildShortestNotation()
-	chain, err := schemas.CreateChain("test", &schemas.TraceHandler{}, &schemas.CatHandler{}, &schemas.IDHandler{}, &schemas.SubHandler{}, &WeightedHandler{}, &schemas.TermHandler{}, &schemas.RepHandler{}, &schemas.BracketHandler{})
-	if err != nil {
-		panic(err)
-	}
-	ctx, err := schemas.NewContext(g, "program", context.Background(), nil)
-	if err != nil {
-		panic(err)
-	}
-
-	for !ctx.GetFinish() {
-		chain.Next(ctx, func(result *schemas.Result) {
-			ctx = result.GetCtx()
-			ctx.HandlerIndex = 0
-			fmt.Println(ctx.Result)
-		})
-	}
-}
 
 type WeightedHandler struct {
 }
@@ -79,19 +52,23 @@ func (h *WeightedHandler) Handle(chain *schemas.Chain, ctx *schemas.Context, cb 
 				votes += ctx.VisitedEdge[schemas.GetEdgeID(cur.GetID(), v.GetID())]
 			}
 		}
-		if votes > 10 && ctx.VisitedEdge[schemas.GetEdgeID(cur.GetID(), sym[candidates[idx]].GetID())] > 4*votes {
+		if votes > 0 && ctx.VisitedEdge[schemas.GetEdgeID(cur.GetID(), sym[candidates[idx]].GetID())] > 3*votes {
 			// if it goes into this branch, it means it chooses too much times this path, which indicates that there is a big probability of circle
 			idx = rand.Intn(len(sym)) //then re-vote for all the branches
 			ctx.VisitedEdge[schemas.GetEdgeID(cur.GetID(), sym[idx].GetID())]++
 			ctx.SymbolStack.Push(sym[idx])
+			ctx.Result.AddEdge(cur, sym[idx])
 		} else {
 			ctx.VisitedEdge[schemas.GetEdgeID(cur.GetID(), sym[candidates[idx]].GetID())]++
 			ctx.SymbolStack.Push(sym[candidates[idx]])
+			ctx.Result.AddEdge(cur, sym[candidates[idx]])
+
 		}
 	default:
 		idx := rand.Int() % len(cur.GetSymbols())
 		ctx.SymbolStack.Push((cur.GetSymbols())[idx])
 		ctx.VisitedEdge[schemas.GetEdgeID(cur.GetID(), (cur.GetSymbols())[idx].GetID())]++
+		ctx.Result.AddEdge(cur, (cur.GetSymbols())[idx])
 	}
 
 	chain.Next(ctx, cb)
@@ -108,103 +85,21 @@ func (h *WeightedHandler) Name() string {
 func (h *WeightedHandler) Type() schemas.GrammarType {
 	return schemas.GrammarOR
 }
-func TestWeightedHandler(t *testing.T) {
-	g, err := parser.Parse("./testdata/complete/tinyc.ebnf", "program")
-	if err != nil {
-		panic(err)
-	}
-	g.MergeProduction()
-	g.BuildShortestNotation()
-	graph.Visualize(g.GetInternal(), "fig.dot", func(vertex graph.Vertex[schemas.Property]) string {
-		return fmt.Sprintf("%s,%d", vertex.GetID(), vertex.GetProperty(schemas.Prop).DistanceToTerminal)
-	})
-	chain, err := schemas.CreateChain("test", &schemas.CatHandler{}, &schemas.IDHandler{}, &schemas.TermHandler{}, &WeightedHandler{}, &schemas.OrHandler{})
-	if err != nil {
-		panic(err)
-	}
-	ctx, err := schemas.NewContext(g, "program", context.Background(), nil)
-	if err != nil {
-		panic(err)
-	}
-	for !ctx.GetFinish() {
-		chain.Next(ctx, func(result *schemas.Result) {
-			ctx = result.GetCtx()
-			ctx.HandlerIndex = 0
-		})
-	}
-	fmt.Println(ctx.Result)
-}
-
-func TestWeightHandlerManyTimes(t *testing.T) {
-	g, err := parser.Parse("./testdata/complete/tinyc.ebnf", "program")
-	if err != nil {
-		panic(err)
-	}
-	g.MergeProduction()
-	g.BuildShortestNotation()
-	chain, err := schemas.CreateChain("test", &schemas.CatHandler{}, &schemas.IDHandler{}, &schemas.TermHandler{}, &WeightedHandler{}, &schemas.OrHandler{})
-	if err != nil {
-		panic(err)
-	}
-	t1 := time.Now()
-	num := 1000000
-	defer func() {
-		duration := time.Since(t1)
-		fmt.Printf("generated %d instances, use %s\n", num, duration)
-	}()
-	results := make(map[string]int)
-	for i := 0; i < num; i++ {
-		ctx, err := schemas.NewContext(g, "program", context.Background(), nil)
-		if err != nil {
-			panic(err)
-		}
-		for !ctx.GetFinish() {
-			chain.Next(ctx, func(result *schemas.Result) {
-				ctx = result.GetCtx()
-				ctx.HandlerIndex = 0
-			})
-		}
-		results[ctx.Result]++
-	}
-	fmt.Println(results)
-
-}
 
 type MonitorHandler struct {
 }
 
 func (h *MonitorHandler) Handle(chain *schemas.Chain, ctx *schemas.Context, cb schemas.ResponseCallBack) {
 	cur := ctx.SymbolStack.Top()
-	if strings.Contains(cur.GetID(), "Expression") {
-		fmt.Println(cur.GetContent())
-	}
 	for key, fn := range schemas.FirstPlaceNode {
 		if len(ctx.SymbolStack.ProductionTrace) > 0 && !strings.Contains(cur.GetID(), ctx.SymbolStack.ProductionTrace[len(ctx.SymbolStack.ProductionTrace)-1]) {
 			continue
 		}
 		if query.MatchPattern(ctx.SymbolStack.ProductionTrace, key) {
-			ctx = fn(ctx)
+			ctx, _ = fn(ctx)
 		}
 	}
-
 	chain.Next(ctx, cb)
-
-	for key, fn := range schemas.SecondPlaceNode {
-		if len(ctx.SymbolStack.ProductionTrace) > 0 && !strings.Contains(cur.GetID(), ctx.SymbolStack.ProductionTrace[len(ctx.SymbolStack.ProductionTrace)-1]) {
-			continue
-		}
-		if query.MatchPattern(ctx.SymbolStack.ProductionTrace, key) {
-			var err error
-			ctx, err = fn.Func(ctx)
-			if err != nil {
-				if errors.Is(err, schemas.ErrSymbolNotFound) {
-					continue
-				}
-				panic(err)
-			}
-		}
-	}
-
 }
 
 func (h *MonitorHandler) HookRoute() []regexp.Regexp {
@@ -219,13 +114,131 @@ func (h *MonitorHandler) Type() schemas.GrammarType {
 	return math.MaxInt
 }
 
+func TestDefaultHandler(t *testing.T) {
+	cons := schemas.DefinedBeforeUse
+	cons.FirstNode = "expr/id"
+	cons.SecondNode = "id"
+
+	schemas.Register(cons)
+	g, err := parser.Parse("./testdata/complete/tinyc.ebnf", "program")
+	if err != nil {
+		panic(err)
+	}
+	g.MergeProduction()
+	g.BuildShortestNotation()
+	chain, err := schemas.CreateChain("test", &schemas.TraceHandler{}, &schemas.CatHandler{}, &schemas.IDHandler{}, &schemas.SubHandler{}, &WeightedHandler{}, &schemas.TermHandler{}, &schemas.RepHandler{}, &schemas.BracketHandler{})
+	if err != nil {
+		panic(err)
+	}
+	ctx, err := schemas.NewContext(g, "program", context.Background(), nil)
+	if err != nil {
+		panic(err)
+	}
+
+	for !ctx.GetFinish() {
+		chain.Next(ctx, func(result *schemas.Result) {
+			ctx = result.GetCtx()
+			ctx.HandlerIndex = 0
+			fmt.Println(ctx.Result)
+		})
+	}
+}
+
+func TestWeightedHandler(t *testing.T) {
+	g, err := parser.Parse("./testdata/complete/tinyc.ebnf", "program")
+	if err != nil {
+		panic(err)
+	}
+	cons := schemas.MaxLimit
+	cons.FirstNode = "paren_expr"
+	cons.SecondNode = "paren_expr"
+	schemas.Register(cons)
+	g.MergeProduction()
+	g.BuildShortestNotation()
+	chain, err := schemas.CreateChain("test", &MonitorHandler{}, &schemas.CatHandler{}, &schemas.IDHandler{}, &schemas.TermHandler{}, &WeightedHandler{}, &schemas.OrHandler{}, &schemas.RepHandler{}, &schemas.BracketHandler{})
+	if err != nil {
+		panic(err)
+	}
+	ctx, err := schemas.NewContext(g, "program", context.Background(), nil)
+	if err != nil {
+		panic(err)
+	}
+	for !ctx.GetFinish() {
+		chain.Next(ctx, func(result *schemas.Result) {
+			ctx = result.GetCtx()
+			ctx.HandlerIndex = 0
+		})
+	}
+	fmt.Println(ctx.Result.GetResult())
+	fmt.Printf("edge coverage: %d/%d\n", len(ctx.VisitedEdge), len(ctx.Grammar.GetInternal().GetAllEdges()))
+	err = graph.Visualize(ctx.Result.Grammar.GetInternal(), "fig.dot", nil)
+	if err != nil {
+		panic(err)
+	}
+
+	timeout := 1 * time.Second
+	ctxtime, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel() // 确保所有路径上都调用了cancel
+
+	input := ctx.Result.GetResult()
+	cmd := exec.CommandContext(ctxtime, "./tinyc")
+	var in bytes.Buffer
+	in.Write([]byte(input))
+	cmd.Stdin = &in
+	output, err := cmd.Output()
+	if err != nil {
+		if errors.Is(ctxtime.Err(), context.DeadlineExceeded) {
+			fmt.Println("命令执行超时")
+			return
+		}
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			log.Fatalf("命令执行失败: %s\n标准错误输出:%s\n", exitErr.Error(), exitErr.Stderr)
+		}
+	}
+	fmt.Println(string(output))
+}
+
+func TestWeightHandlerManyTimes(t *testing.T) {
+	g, err := parser.Parse("./testdata/complete/tinyc.ebnf", "program")
+	if err != nil {
+		panic(err)
+	}
+	g.MergeProduction()
+	g.BuildShortestNotation()
+	chain, err := schemas.CreateChain("test", &schemas.CatHandler{}, &schemas.IDHandler{}, &schemas.TermHandler{}, &WeightedHandler{}, &schemas.OrHandler{}, &schemas.RepHandler{})
+	if err != nil {
+		panic(err)
+	}
+	t1 := time.Now()
+	num := 1000000
+	defer func() {
+		duration := time.Since(t1)
+		fmt.Printf("generated %d instances, use %s\n", num, duration)
+	}()
+	results := make(map[string]int)
+	for i := 0; i < num; i++ {
+		ctx, err := schemas.NewContext(g, "program", context.Background(), nil)
+		ctx.Mode = schemas.ShrinkMode
+		if err != nil {
+			panic(err)
+		}
+		for !ctx.GetFinish() {
+			chain.Next(ctx, func(result *schemas.Result) {
+				ctx = result.GetCtx()
+				ctx.HandlerIndex = 0
+			})
+		}
+		//results[ctx.Result]++
+	}
+	fmt.Println(results)
+
+}
+
 func TestDefaultHandlerCypher(t *testing.T) {
 	cons := schemas.MaxLimit
 	cons.FirstNode = "Expression"
 	cons.SecondNode = "Expression"
-	cons2 := schemas.MaxLimit
-	cons2.FirstNode = "Expression"
-	cons2.SecondNode = "Expression"
 	schemas.Register(cons)
 	g, err := parser.Parse("./testdata/complete/Cypher.ebnf", "Cypher")
 	if err != nil {
@@ -237,7 +250,7 @@ func TestDefaultHandlerCypher(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 100; i++ {
 		ctx, err := schemas.NewContext(g, "Cypher", context.Background(), nil)
 		if err != nil {
 			panic(err)
@@ -247,8 +260,8 @@ func TestDefaultHandlerCypher(t *testing.T) {
 			chain.Next(ctx, func(result *schemas.Result) {
 				ctx = result.GetCtx()
 				ctx.HandlerIndex = 0
-				fmt.Println(ctx.Result)
 			})
 		}
+		fmt.Println(ctx.Result)
 	}
 }

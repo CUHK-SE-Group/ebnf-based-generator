@@ -3,7 +3,6 @@ package schemas
 import (
 	"errors"
 	"fmt"
-	"github.com/CUHK-SE-Group/generic-generator/schemas/query"
 	"log/slog"
 	"math"
 	"math/rand"
@@ -50,6 +49,10 @@ func (h *CatHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
 	for i := len(cur.GetSymbols()) - 1; i >= 0; i-- {
 		ctx.SymbolStack.Push((cur.GetSymbols())[i])
 	}
+	for i := 0; i < len(cur.GetSymbols()); i++ {
+		ctx.Result.AddEdge(cur, (cur.GetSymbols())[i])
+	}
+
 	chain.Next(ctx, cb)
 }
 
@@ -77,6 +80,7 @@ func (h *OrHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
 	ctx.SymbolStack.Pop()
 	idx := rand.Int() % len(cur.GetSymbols())
 	ctx.SymbolStack.Push((cur.GetSymbols())[idx])
+	ctx.Result.AddEdge(cur, (cur.GetSymbols())[idx])
 	ctx.VisitedEdge[GetEdgeID(cur.GetID(), (cur.GetSymbols())[idx].GetID())]++
 	chain.Next(ctx, cb)
 }
@@ -107,7 +111,7 @@ func (h *IDHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
 	node := ctx.Grammar.GetNode(cur.GetContent())
 	if node.internal == nil {
 		slog.Error("The identifier does not Existed", "id", cur.GetContent())
-		ctx.Result += cur.GetContent()
+		ctx.Result.AddEdge(cur, node)
 		return // omit error
 	}
 	ctx.SymbolStack.Push(node)
@@ -132,8 +136,11 @@ type RepHandler struct {
 func (r *RepHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
 	cur := ctx.SymbolStack.Top()
 	ctx.SymbolStack.Pop()
-	for i := 0; i < rand.Intn(1); i++ {
+	if rand.Intn(10) > 8 {
 		ctx.SymbolStack.Push(cur.GetSymbols()...)
+		for _, node := range cur.GetSymbols() {
+			ctx.Result.AddEdge(cur, node)
+		}
 	}
 	chain.Next(ctx, cb)
 }
@@ -169,47 +176,21 @@ func (h *TermHandler) stripQuote(content string) string {
 
 func (h *TermHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
 	cur := ctx.SymbolStack.Top()
-	for key, fn := range FirstPlaceNode {
-		if !strings.Contains(cur.GetID(), ctx.SymbolStack.ProductionTrace[len(ctx.SymbolStack.ProductionTrace)-1]) {
-			continue
-		}
-		if query.MatchPattern(ctx.SymbolStack.ProductionTrace, key) {
-			ctx = fn(ctx)
-			chain.Next(ctx, cb)
-			return
-		}
-	}
-	for key, fn := range SecondPlaceNode {
-		if !strings.Contains(cur.GetID(), ctx.SymbolStack.ProductionTrace[len(ctx.SymbolStack.ProductionTrace)-1]) {
-			continue
-		}
-		if query.MatchPattern(ctx.SymbolStack.ProductionTrace, key) {
-			var err error
-			ctx, err = fn.Func(ctx)
-			if err != nil {
-				if errors.Is(err, ErrSymbolNotFound) {
-					continue
-				}
-				panic(err)
-			}
-			chain.Next(ctx, cb)
-			return
-		}
-	}
 	ctx.SymbolStack.Pop()
 
 	if len(cur.GetSymbols()) != 0 {
 		slog.Error("Pattern mismatched[Terminal]")
 		return
 	}
-	result := ""
-	regex := h.stripQuote(cur.GetContent())
-	if h.isTermPreserve(cur) {
-		result = regex
-	} else {
-		result = regex
-	}
-	ctx.Result += result
+	//result := ""
+	//regex := h.stripQuote(cur.GetContent())
+	//if h.isTermPreserve(cur) {
+	//	result = regex
+	//} else {
+	//	result = regex
+	//}
+	//fmt.Println(result)
+	ctx.Result.AddEdge(cur, cur)
 	chain.Next(ctx, cb)
 }
 
@@ -229,16 +210,21 @@ type BracketHandler struct {
 }
 
 func (h *BracketHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
-	//cur := ctx.SymbolStack.Top()
+	cur := ctx.SymbolStack.Top()
 	ctx.SymbolStack.Pop()
-
-	//if len(cur.GetSymbols()) == 0 {
-	//	slog.Error("Pattern mismatched[Identifier]")
-	//	return
-	//}
-	//for i := len(cur.GetSymbols()) - 1; i >= 0; i-- {
-	//	ctx.SymbolStack.Push(cur.GetSymbol(i))
-	//}
+	children := cur.GetSymbols()
+	if len(children) == 0 {
+		slog.Error("Pattern mismatched[Identifier]")
+		return
+	}
+	if strings.Contains(cur.GetContent(), "SP") {
+		for i := len(children) - 1; i >= 0; i-- {
+			ctx.SymbolStack.Push(children[i])
+		}
+		for i := 0; i < len(children); i++ {
+			ctx.Result.AddEdge(cur, children[i])
+		}
+	}
 	chain.Next(ctx, cb)
 }
 
@@ -262,6 +248,10 @@ func (h *ParenHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
 	ctx.SymbolStack.Pop()
 	for i := len(cur.GetSymbols()) - 1; i >= 0; i-- {
 		ctx.SymbolStack.Push(cur.GetSymbol(i))
+	}
+
+	for i := 0; i < len(cur.GetSymbols()); i++ {
+		ctx.Result.AddEdge(cur, cur.GetSymbol(i))
 	}
 	chain.Next(ctx, cb)
 }
@@ -293,6 +283,10 @@ func (h *BraceHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
 	for i := len(cur.GetSymbols()) - 1; i >= 0; i-- {
 		ctx.SymbolStack.Push(cur.GetSymbol(i))
 	}
+	for i := 0; i < len(cur.GetSymbols()); i++ {
+		ctx.Result.AddEdge(cur, cur.GetSymbol(i))
+	}
+
 	chain.Next(ctx, cb)
 }
 

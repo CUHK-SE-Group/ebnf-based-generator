@@ -111,6 +111,68 @@ func (t *TrieNode) Insert(n *Node, path []string, index *map[string]*TrieNode) {
 	node.IsEnd = true
 }
 
+type Derivation struct {
+	*Grammar
+	EdgeHistory []string
+	symbolCnt   map[string]int
+}
+
+func (d *Derivation) getNodeID(id string) string {
+	return fmt.Sprintf("%s#%d", id, d.symbolCnt[id])
+}
+
+func (d *Derivation) AddEdge(from, to *Node) {
+	newfrom := from.Clone(d.Grammar)
+	newto := to.Clone(d.Grammar)
+
+	newfrom.SetID(d.getNodeID(from.GetID())) // update the `from` node to the current existing node
+	newto.SetID(d.getNodeID(to.GetID()))
+
+	newfrom.AddSymbol(newto)
+	d.EdgeHistory = append(d.EdgeHistory, GetEdgeID(newfrom.GetID(), newto.GetID()))
+	d.symbolCnt[to.GetID()]++ // denote the `to` node to a new node
+
+}
+
+func (d *Derivation) GetResult() string {
+	d.symbolCnt = make(map[string]int)
+	res := ""
+	for _, e := range d.EdgeHistory {
+		from, to := ExtractEdgeID(e)
+		if from == to {
+			res += d.GetNode(to).GetContent()
+			d.symbolCnt[to]++
+			continue
+		}
+		//if d.GetNode(to).GetType() == GrammarTerminal {
+		//	res += d.GetNode(to).GetContent()
+		//}
+	}
+	return res
+	//var DFS func(node *Node)
+	//DFS = func(node *Node) {
+	//	if node == nil {
+	//		return
+	//	}
+	//
+	//	if node.GetType() == GrammarTerminal {
+	//		res += node.GetContent()
+	//		return
+	//	}
+	//
+	//	if node.GetType() == GrammarID {
+	//		DFS(d.GetNode(node.GetContent()))
+	//		return
+	//	}
+	//
+	//	for _, child := range node.GetSymbols() {
+	//		DFS(child)
+	//	}
+	//}
+	//DFS(d.GetNode(d.startSym))
+	return res
+}
+
 type Grammar struct {
 	internal  graph.Graph[string, Property]
 	startSym  string
@@ -137,6 +199,11 @@ func (g *Grammar) GetNode(id string) *Node {
 		return &Node{internal: inter}
 	}
 	return nil
+}
+
+func (g *Grammar) GetEdge(id string) (*Node, *Node) {
+	from, to := ExtractEdgeID(id)
+	return g.GetNode(from), g.GetNode(to)
 }
 
 func (p *Grammar) MergeProduction() {
@@ -388,6 +455,16 @@ func NewNode(g *Grammar, tp GrammarType, id, content string) *Node {
 	return &Node{internal: n}
 }
 
+func (g *Node) Clone(belongto *Grammar) *Node {
+	newInternal := graph.CloneVertex(g.internal, graph.NewVertex[Property])
+	if belongto != nil {
+		p := newInternal.GetProperty(Prop)
+		p.Gram = belongto
+		newInternal.SetProperty(Prop, p)
+	}
+	return &Node{internal: newInternal}
+}
+
 func (g *Node) GetType() GrammarType {
 	if g.internal == nil {
 		return 0
@@ -397,6 +474,9 @@ func (g *Node) GetType() GrammarType {
 
 func (g *Node) GetID() string {
 	return g.internal.GetID()
+}
+func (g *Node) SetID(id string) {
+	g.internal.SetID(id)
 }
 
 func (g *Node) SetRoot(r *Node) {
@@ -456,4 +536,12 @@ func (g *Node) GetDistance() int {
 }
 func GetEdgeID(father string, child string) string {
 	return fmt.Sprintf("%s,%s", father, child)
+}
+
+func ExtractEdgeID(id string) (string, string) {
+	res := strings.Split(id, ",")
+	if len(res) != 2 {
+		panic("error in id")
+	}
+	return res[0], res[1]
 }

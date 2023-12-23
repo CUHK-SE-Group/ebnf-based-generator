@@ -82,9 +82,8 @@ type Context struct {
 	HandlerIndex   int
 	SymbolStack    *Stack
 	ProductionRoot *Node
-	Result         string
+	Result         *Derivation
 	finish         bool
-	FinishCh       chan bool
 	Storage        *memdb.MemDB
 
 	VisitedEdge map[string]int
@@ -140,8 +139,12 @@ func NewContext(grammarMap *Grammar, startSymbol string, ctx context.Context, ge
 		Context:        ctx, // 使用带有超时的context
 		SymbolStack:    NewStack().Push(node),
 		ProductionRoot: node,
-		FinishCh:       make(chan bool, 1),
 		Storage:        db,
 		VisitedEdge:    map[string]int{},
+		Result: &Derivation{
+			Grammar:     NewGrammar(startSymbol),
+			EdgeHistory: make([]string, 0),
+			symbolCnt:   make(map[string]int),
+		},
 	}, nil
 }
