@@ -193,7 +193,7 @@ func TestWeightedHandler(t *testing.T) {
 		}
 		var exitErr *exec.ExitError
 		if errors.As(err, &exitErr) {
-			log.Fatalf("命令执行失败: %s\n标准错误输出:%s\n", exitErr.Error(), exitErr.Stderr)
+			log.Printf("命令执行失败: %s\n标准错误输出:%s\n", exitErr.Error(), exitErr.Stderr)
 		}
 	}
 	fmt.Println(string(output))

@@ -79,12 +79,11 @@ func NewStack() *Stack {
 type Context struct {
 	Grammar *Grammar
 	context.Context
-	HandlerIndex   int
-	SymbolStack    *Stack
-	ProductionRoot *Node
-	Result         *Derivation
-	finish         bool
-	Storage        *memdb.MemDB
+	HandlerIndex int
+	SymbolStack  *Stack
+	Result       *Derivation
+	finish       bool
+	Storage      *memdb.MemDB
 
 	VisitedEdge map[string]int
 	Mode        Mode
@@ -135,12 +134,11 @@ func NewContext(grammarMap *Grammar, startSymbol string, ctx context.Context, ge
 	}
 
 	return &Context{
-		Grammar:        grammarMap,
-		Context:        ctx, // 使用带有超时的context
-		SymbolStack:    NewStack().Push(node),
-		ProductionRoot: node,
-		Storage:        db,
-		VisitedEdge:    map[string]int{},
+		Grammar:     grammarMap,
+		Context:     ctx, // 使用带有超时的context
+		SymbolStack: NewStack().Push(node),
+		Storage:     db,
+		VisitedEdge: map[string]int{},
 		Result: &Derivation{
 			Grammar:     NewGrammar(startSymbol),
 			EdgeHistory: make([]string, 0),

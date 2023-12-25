@@ -21,12 +21,10 @@ const (
 	GrammarOR                     // yes
 	GrammarCatenate
 	GrammarOptional // yes
-	GrammarPAREN
-	GrammarBRACE // yes
-	GrammarREP   // yes
-	GrammarPLUS  // yes
-	GrammarEXT   // yes
-	GrammarSUB   // yes
+	GrammarREP      // yes
+	GrammarPLUS     // yes
+	GrammarEXT      // yes
+	GrammarSUB      // yes
 	GrammarID
 	GrammarTerminal
 	GrammarChoice
@@ -43,8 +41,6 @@ var typeStrRep = map[GrammarType]string{
 	GrammarOR:         "GrammarOR",
 	GrammarCatenate:   "GrammarCatenate",
 	GrammarOptional:   "GrammarOptional",
-	GrammarPAREN:      "GrammarPAREN",
-	GrammarBRACE:      "GrammarBRACE",
 	GrammarREP:        "GrammarREP",
 	GrammarPLUS:       "GrammarPLUS",
 	GrammarEXT:        "GrammarEXT",
@@ -501,7 +497,11 @@ func (g *Node) AddSymbol(new *Node) int {
 	return len(g.GetGrammar().internal.GetOutEdges(g.internal)) - 1
 }
 func getNumber(id string) int {
-	num1, err := strconv.Atoi(strings.Split(id, "#")[1])
+	ids := strings.Split(id, "#")
+	if len(ids) != 2 {
+		panic("the id format should be xxx#yyy")
+	}
+	num1, err := strconv.Atoi(ids[1])
 	if err != nil {
 		slog.Error("strconv atoi", "error", err)
 	}

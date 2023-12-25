@@ -13,23 +13,6 @@ import (
 	"github.com/antlr4-go/antlr/v4"
 )
 
-/*
-node搜索流程：
-1. 能控制生成的只有 OR，REP。因此生成限制仅通过指定 某个Production下的操作是什么
-xpath ..    node1.. node2
-[SKIP, expression] func () { random ... }
-e.g., 我要限制 SKIP 语句下的 expression 的 OR 生成是随机的。或 我要指定 SKIP 语句下的 REP 次数小于 3
-
-2. 定位节点
-
-先将生成逻辑挂载到对应的node类型中，例如是针对OR的。并且声明他的作用域是SKIP。
-则在真正生成时，对这类节点的生成逻辑进行匹配，如果这个类型匹配到是SKIP，则应用这类生成逻辑。（可以保存生成路径，则一旦检测到生成路径里有对应的作用域，则应用该逻辑）
-
-3. 生成变量的约束
-
-同样，约束SKIP下的变量生成是从前面生成的某语句里sample，类似于上一步
-*/
-
 type ebnfListener struct {
 	*ebnf.BaseEBNFParserListener
 	stack             []*schemas.Node

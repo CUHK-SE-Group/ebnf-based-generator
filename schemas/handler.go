@@ -240,68 +240,6 @@ func (h *BracketHandler) Type() GrammarType {
 	return GrammarOptional
 }
 
-type ParenHandler struct {
-}
-
-func (h *ParenHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
-	cur := ctx.SymbolStack.Top()
-	ctx.SymbolStack.Pop()
-	for i := len(cur.GetSymbols()) - 1; i >= 0; i-- {
-		ctx.SymbolStack.Push(cur.GetSymbol(i))
-	}
-
-	for i := 0; i < len(cur.GetSymbols()); i++ {
-		ctx.Result.AddEdge(cur, cur.GetSymbol(i))
-	}
-	chain.Next(ctx, cb)
-}
-
-func (h *ParenHandler) HookRoute() []regexp.Regexp {
-	return make([]regexp.Regexp, 0)
-}
-
-func (h *ParenHandler) Name() string {
-	return ParenHandlerName
-}
-
-func (h *ParenHandler) Type() GrammarType {
-	return GrammarPAREN
-}
-
-type BraceHandler struct {
-}
-
-func (h *BraceHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
-	cur := ctx.SymbolStack.Top()
-	ctx.SymbolStack.Pop()
-
-	if len(cur.GetSymbols()) == 0 {
-		slog.Error("Pattern mismatched[Identifier]")
-		return
-	}
-
-	for i := len(cur.GetSymbols()) - 1; i >= 0; i-- {
-		ctx.SymbolStack.Push(cur.GetSymbol(i))
-	}
-	for i := 0; i < len(cur.GetSymbols()); i++ {
-		ctx.Result.AddEdge(cur, cur.GetSymbol(i))
-	}
-
-	chain.Next(ctx, cb)
-}
-
-func (h *BraceHandler) HookRoute() []regexp.Regexp {
-	return make([]regexp.Regexp, 0)
-}
-
-func (h *BraceHandler) Name() string {
-	return BraceHandlerName
-}
-
-func (h *BraceHandler) Type() GrammarType {
-	return GrammarBRACE
-}
-
 type SubHandler struct {
 }
 

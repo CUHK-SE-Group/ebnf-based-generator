@@ -26,7 +26,6 @@ func (c *Chain) AddHandler(h Handler) {
 // Next is for to handle next handler in the chain
 func (c *Chain) Next(ctx *Context, f ResponseCallBack) {
 	for index := ctx.HandlerIndex; index < len(c.Handlers); index++ {
-		ctx.HandlerIndex++
 		if ctx.SymbolStack.Top() == nil || ctx.SymbolStack.Empty() {
 			if !ctx.SymbolStack.Empty() {
 				panic(ctx)
@@ -42,6 +41,7 @@ func (c *Chain) Next(ctx *Context, f ResponseCallBack) {
 
 		// 如果类型符合
 		if ctx.SymbolStack.Top().GetType()&c.Handlers[index].Type() != 0 && satisfy(ctx, c.Handlers[index]) {
+			ctx.HandlerIndex++
 			c.Handlers[index].Handle(c, ctx, f)
 		}
 	}
