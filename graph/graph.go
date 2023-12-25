@@ -59,6 +59,17 @@ type Vertex[VertexPropertyType any] interface {
 	GetMeta() any
 }
 
+func CloneVertex[Vpt any](v Vertex[Vpt], newVertex func() Vertex[Vpt]) Vertex[Vpt] {
+	clonedVertex := newVertex() // Use the factory function to create a new vertex instance
+	clonedVertex.SetID(v.GetID())
+	// Retrieve and set all properties
+	for key, val := range v.GetAllProperties() {
+		clonedVertex.SetProperty(key, val)
+	}
+	clonedVertex.SetMeta(v.GetMeta())
+	return clonedVertex
+}
+
 // Clone Ept: EdgePropertyType, Vpt: VertexPropertyType
 func Clone[Ept any, Vpt any](graph Graph[Ept, Vpt], newGraph func() Graph[Ept, Vpt], newEdge func() Edge[Ept, Vpt], newVertex func() Vertex[Vpt]) Graph[Ept, Vpt] {
 	// Use the provided factory function to create a new graph instance

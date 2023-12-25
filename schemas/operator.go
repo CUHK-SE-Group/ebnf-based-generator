@@ -14,6 +14,7 @@ var (
 )
 var (
 	ErrSymbolNotFound = errors.New("notfound")
+	ErrPassThrough    = errors.New("pass through the process")
 )
 
 func trimNumber(id string) string {
@@ -36,16 +37,17 @@ func randomKey(m map[string]int) string {
 
 func init() {
 	DefinedBeforeUse = Constraint{
-		FirstOp: func(ctx *Context) *Context {
+		FirstOp: func(ctx *Context) (*Context, error) {
 			cur := ctx.SymbolStack.Top()
 			if cur.GetType() != GrammarTerminal {
-				return nil
+				return ctx, errors.New("the symbol type is not GrammarTerminal")
 			}
 			result, err := reggen.Generate(cur.GetContent(), 1)
 			if err != nil {
-				return nil
+				return ctx, errors.Join(err, errors.New("reggen failed"))
 			}
-			ctx.Result += result
+			//ctx.Result += result
+			fmt.Println(result)
 
 			txn := ctx.Storage.Txn(true)
 			raw, err := txn.First("nodeRuntimeInfo", "id", trimNumber(cur.GetID()))
@@ -59,7 +61,6 @@ func init() {
 					ID:           trimNumber(cur.GetID()),
 					SampledValue: make(map[string]int),
 				}
-				fmt.Println("add a new symbol", trimNumber(cur.GetID()), cur.GetContent())
 			} else {
 				node = raw.(*NodeRuntimeInfo)
 			}
@@ -71,7 +72,7 @@ func init() {
 			}
 			txn.Commit()
 			ctx.SymbolStack.Pop()
-			return ctx
+			return ctx, nil
 		},
 		SecondOp: Action{
 			Type: FUNC,
@@ -89,14 +90,15 @@ func init() {
 				if node.Count > 5 {
 					ctx.Mode = ShrinkMode
 				}
-				ctx.Result += randomKey(node.SampledValue)
+				//ctx.Result += randomKey(node.SampledValue)
+				fmt.Println(randomKey(node.SampledValue))
 				ctx.SymbolStack.Pop()
 				return ctx, nil
 			},
 		},
 	}
 	MaxLimit = Constraint{
-		FirstOp: func(ctx *Context) *Context {
+		FirstOp: func(ctx *Context) (*Context, error) {
 			cur := ctx.SymbolStack.Top()
 			txn := ctx.Storage.Txn(true)
 			raw, err := txn.First("nodeRuntimeInfo", "id", trimNumber(cur.GetID()))
@@ -110,17 +112,19 @@ func init() {
 					ID:           trimNumber(cur.GetID()),
 					SampledValue: make(map[string]int),
 				}
-				fmt.Println("add a new symbol", trimNumber(cur.GetID()), cur.GetContent())
 			} else {
 				node = raw.(*NodeRuntimeInfo)
 			}
 			node.Count++
+			if node.Count > 3 {
+				ctx.Mode = ShrinkMode
+			}
 			err = txn.Insert("nodeRuntimeInfo", node)
 			if err != nil {
 				panic(err)
 			}
 			txn.Commit()
-			return ctx
+			return ctx, ErrPassThrough
 		},
 		SecondOp: Action{
 			Type: FUNC,
@@ -135,10 +139,10 @@ func init() {
 					return ctx, nil
 				}
 				node := raw.(*NodeRuntimeInfo)
-				if node.Count > 1 {
+				if node.Count > 10 {
 					ctx.Mode = ShrinkMode
 				}
-				return ctx, nil
+				return ctx, ErrPassThrough
 			},
 		},
 	}

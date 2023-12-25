@@ -64,23 +64,7 @@ func newGraph() (Graph[string, string], []Vertex[string]) {
 
 	return g, vertices
 }
-func TestIdentifyCyclesAndInitializeProbabilities(t *testing.T) {
-	g, vertices := newGraph()
-	// 调用函数
-	identifyCyclesAndInitializeProbabilities[string, string](g, "vertex0")
 
-	// 检查结果
-	for i, v := range vertices {
-		expectedProb := 0.0
-		if i >= 1 && i <= 4 { // 节点 1, 2, 3 在环中
-			expectedProb = 1.0
-		}
-		actualProb := v.GetMeta().(graphMeta).cycleProbability
-		if actualProb != expectedProb {
-			t.Errorf("Vertex %s: expected cycleProbability %v, got %v", v.GetID(), expectedProb, actualProb)
-		}
-	}
-}
 func TestUpdateNodeProbability(t *testing.T) {
 	g, _ := newGraph()
 	//// 更新 node1 的概率

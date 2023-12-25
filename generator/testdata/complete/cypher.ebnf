@@ -3,7 +3,6 @@ Cypher = [SP], Statement, [[SP], ';'], [SP] ;
 Statement = Query ;
 
 Query = RegularQuery
-      | StandaloneCall
       ;
 
 RegularQuery = SingleQuery, { [SP], Union } ;
@@ -16,8 +15,7 @@ SingleQuery = SinglePartQuery
             | MultiPartQuery
             ;
 
-SinglePartQuery = ({ ReadingClause, [SP] }, Return)
-                | ({ ReadingClause, [SP] }, UpdatingClause, { [SP], UpdatingClause }, [[SP], Return])
+SinglePartQuery = (ReadingClause, [SP] , Return)
                 ;
 
 MultiPartQuery = { { ReadingClause, [SP] }, { UpdatingClause, [SP] }, With, [SP] }-, SinglePartQuery ;
@@ -406,7 +404,7 @@ IdentifierPart = 'part'
 
 EscapedSymbolicName = { '`', { ANY-('`') }, '`' }- ;
 
-SP = { whitespace }- ;
+SP = ' ' ;
 
 whitespace = ' '
            ;
@@ -472,4 +470,4 @@ X = 'X' ;
 
 Y = 'Y'  ;
 
-ANY = 'testany'
+ANY = 'testany';

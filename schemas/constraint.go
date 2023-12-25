@@ -18,11 +18,11 @@ How to define a constraint?
 2. Then, in the next step, if a symbol found that it is in SecondPlaceNode, it will read the information that stored in schemas.Context, then take corresponding action
 */
 
-var FirstPlaceNode map[string]func(ctx *Context) *Context // key's type is path pattern
+var FirstPlaceNode map[string]func(ctx *Context) (*Context, error) // key's type is path pattern
 var SecondPlaceNode map[string]Action
 
 func init() {
-	FirstPlaceNode = make(map[string]func(ctx *Context) *Context)
+	FirstPlaceNode = make(map[string]func(ctx *Context) (*Context, error))
 	SecondPlaceNode = make(map[string]Action)
 }
 
@@ -35,7 +35,7 @@ type Action struct {
 type Constraint struct {
 	FirstNode  string
 	SecondNode string
-	FirstOp    func(ctx *Context) *Context
+	FirstOp    func(ctx *Context) (*Context, error)
 	SecondOp   Action
 }
 
