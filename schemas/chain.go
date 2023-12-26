@@ -1,9 +1,5 @@
 package schemas
 
-import (
-	"log/slog"
-)
-
 type Chain struct {
 	Name     string
 	Handlers []Handler
@@ -30,9 +26,9 @@ func (c *Chain) Next(ctx *Context, f ResponseCallBack) {
 			if !ctx.SymbolStack.Empty() {
 				panic(ctx)
 			}
-			if ctx.finish {
-				slog.Error("Warning: Symbol queue should not be empty")
-			}
+			//if ctx.finish {
+			//	slog.Error("Warning: Symbol queue should not be empty")
+			//}
 			ctx.finish = true
 			r := NewResult(ctx)
 			f(r)

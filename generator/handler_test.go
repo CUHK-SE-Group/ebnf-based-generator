@@ -8,13 +8,14 @@ import (
 	"github.com/CUHK-SE-Group/generic-generator/graph"
 	"github.com/CUHK-SE-Group/generic-generator/parser"
 	"github.com/CUHK-SE-Group/generic-generator/schemas"
-	"github.com/CUHK-SE-Group/generic-generator/schemas/query"
 	"log"
 	"math"
 	"math/rand"
+	"os"
 	"os/exec"
 	"regexp"
-	"strings"
+	"runtime"
+	"runtime/pprof"
 	"testing"
 	"time"
 )
@@ -52,18 +53,17 @@ func (h *WeightedHandler) Handle(chain *schemas.Chain, ctx *schemas.Context, cb 
 				votes += ctx.VisitedEdge[schemas.GetEdgeID(cur.GetID(), v.GetID())]
 			}
 		}
-		if votes > 0 && ctx.VisitedEdge[schemas.GetEdgeID(cur.GetID(), sym[candidates[idx]].GetID())] > 3*votes {
-			// if it goes into this branch, it means it chooses too much times this path, which indicates that there is a big probability of circle
-			idx = rand.Intn(len(sym)) //then re-vote for all the branches
-			ctx.VisitedEdge[schemas.GetEdgeID(cur.GetID(), sym[idx].GetID())]++
-			ctx.SymbolStack.Push(sym[idx])
-			ctx.Result.AddEdge(cur, sym[idx])
-		} else {
-			ctx.VisitedEdge[schemas.GetEdgeID(cur.GetID(), sym[candidates[idx]].GetID())]++
-			ctx.SymbolStack.Push(sym[candidates[idx]])
-			ctx.Result.AddEdge(cur, sym[candidates[idx]])
-
-		}
+		//if (votes > 0 && ctx.VisitedEdge[schemas.GetEdgeID(cur.GetID(), sym[candidates[idx]].GetID())] > 3*votes) || (votes == 0 && ctx.VisitedEdge[schemas.GetEdgeID(cur.GetID(), sym[candidates[idx]].GetID())] > 20) {
+		//	// if it goes into this branch, it means it chooses too much times this path, which indicates that there is a big probability of circle
+		//	idx = rand.Intn(len(sym)) //then re-vote for all the branches
+		//	ctx.VisitedEdge[schemas.GetEdgeID(cur.GetID(), sym[idx].GetID())]++
+		//	ctx.SymbolStack.Push(sym[idx])
+		//	ctx.Result.AddEdge(cur, sym[idx])
+		//} else {
+		ctx.VisitedEdge[schemas.GetEdgeID(cur.GetID(), sym[candidates[idx]].GetID())]++
+		ctx.SymbolStack.Push(sym[candidates[idx]])
+		ctx.Result.AddEdge(cur, sym[candidates[idx]])
+		//}
 	default:
 		idx := rand.Int() % len(cur.GetSymbols())
 		ctx.SymbolStack.Push((cur.GetSymbols())[idx])
@@ -90,15 +90,15 @@ type MonitorHandler struct {
 }
 
 func (h *MonitorHandler) Handle(chain *schemas.Chain, ctx *schemas.Context, cb schemas.ResponseCallBack) {
-	cur := ctx.SymbolStack.Top()
-	for key, fn := range schemas.FirstPlaceNode {
-		if len(ctx.SymbolStack.ProductionTrace) > 0 && !strings.Contains(cur.GetID(), ctx.SymbolStack.ProductionTrace[len(ctx.SymbolStack.ProductionTrace)-1]) {
-			continue
-		}
-		if query.MatchPattern(ctx.SymbolStack.ProductionTrace, key) {
-			ctx, _ = fn(ctx)
-		}
-	}
+	//cur := ctx.SymbolStack.Top()
+	//for key, fn := range schemas.FirstPlaceNode {
+	//	if len(ctx.SymbolStack.ProductionTrace) > 0 && !strings.Contains(cur.GetID(), ctx.SymbolStack.ProductionTrace[len(ctx.SymbolStack.ProductionTrace)-1]) {
+	//		continue
+	//	}
+	//	if query.MatchPattern(ctx.SymbolStack.ProductionTrace, key) {
+	//		ctx, _ = fn(ctx)
+	//	}
+	//}
 	chain.Next(ctx, cb)
 }
 
@@ -160,6 +160,7 @@ func TestWeightedHandler(t *testing.T) {
 		panic(err)
 	}
 	ctx, err := schemas.NewContext(g, "program", context.Background(), nil)
+	ctx.Mode = schemas.ShrinkMode
 	if err != nil {
 		panic(err)
 	}
@@ -167,6 +168,7 @@ func TestWeightedHandler(t *testing.T) {
 		chain.Next(ctx, func(result *schemas.Result) {
 			ctx = result.GetCtx()
 			ctx.HandlerIndex = 0
+			fmt.Println(ctx.Result.GetResult())
 		})
 	}
 	fmt.Println(ctx.Result.GetResult())
@@ -200,23 +202,33 @@ func TestWeightedHandler(t *testing.T) {
 }
 
 func TestWeightHandlerManyTimes(t *testing.T) {
+	cpuFile, err := os.Create("cpu.prof")
+	if err != nil {
+		t.Fatalf("could not create CPU profile: %v", err)
+	}
+	defer cpuFile.Close()
+
+	if err := pprof.StartCPUProfile(cpuFile); err != nil {
+		t.Fatalf("could not start CPU profile: %v", err)
+	}
+	defer pprof.StopCPUProfile()
+
 	g, err := parser.Parse("./testdata/complete/tinyc.ebnf", "program")
 	if err != nil {
 		panic(err)
 	}
 	g.MergeProduction()
 	g.BuildShortestNotation()
-	chain, err := schemas.CreateChain("test", &schemas.CatHandler{}, &schemas.IDHandler{}, &schemas.TermHandler{}, &WeightedHandler{}, &schemas.OrHandler{}, &schemas.RepHandler{})
+	chain, err := schemas.CreateChain("test", &MonitorHandler{}, &schemas.CatHandler{}, &schemas.IDHandler{}, &schemas.TermHandler{}, &WeightedHandler{}, &schemas.OrHandler{}, &schemas.RepHandler{}, &schemas.BracketHandler{})
 	if err != nil {
 		panic(err)
 	}
 	t1 := time.Now()
-	num := 1000000
+	num := 1000
 	defer func() {
 		duration := time.Since(t1)
 		fmt.Printf("generated %d instances, use %s\n", num, duration)
 	}()
-	results := make(map[string]int)
 	for i := 0; i < num; i++ {
 		ctx, err := schemas.NewContext(g, "program", context.Background(), nil)
 		ctx.Mode = schemas.ShrinkMode
@@ -229,10 +241,19 @@ func TestWeightHandlerManyTimes(t *testing.T) {
 				ctx.HandlerIndex = 0
 			})
 		}
-		//results[ctx.Result]++
+		fmt.Println(ctx.Result.GetResult())
+		fmt.Printf("edge coverage: %d/%d\n", len(ctx.VisitedEdge), len(ctx.Grammar.GetInternal().GetAllEdges()))
 	}
-	fmt.Println(results)
 
+	memFile, err := os.Create("mem.prof")
+	if err != nil {
+		t.Fatalf("could not create memory profile: %v", err)
+	}
+	defer memFile.Close()
+	runtime.GC() // GC, to get a clean memory profile
+	if err := pprof.WriteHeapProfile(memFile); err != nil {
+		t.Fatalf("could not write memory profile: %v", err)
+	}
 }
 
 func TestDefaultHandlerCypher(t *testing.T) {

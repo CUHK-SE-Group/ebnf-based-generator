@@ -110,7 +110,7 @@ func (t *TrieNode) Insert(n *Node, path []string, index *map[string]*TrieNode) {
 type Derivation struct {
 	*Grammar
 	EdgeHistory []string
-	symbolCnt   map[string]int
+	symbolCnt   map[string]int // 为了给语法图上的Node做标记
 }
 
 func (d *Derivation) getNodeID(id string) string {
@@ -332,39 +332,76 @@ func updateVisitedNodes(node *TrieNode) bool {
 }
 
 func (g *Grammar) BuildShortestNotation() {
-	terminals := make([]graph.Vertex[Property], 0)
-	distance := g.BuildShortestNotation1()
+	vertices := g.internal.GetAllVertices()
+	numVertices := len(vertices)
+	vertexMap := make(map[string]int)
+	for i, vertex := range vertices {
+		vertexMap[vertex.GetID()] = i
+	}
 
-	for _, v := range g.GetInternal().GetAllVertices() {
-		if v.GetProperty(Prop).Type == GrammarTerminal {
-			edges := g.internal.GetInEdges(v)
-			allTerminal := true
-			for _, e := range edges {
-				father := e.GetFrom()
-				edges1 := g.internal.GetOutEdges(father)
-				for _, e1 := range edges1 {
-					if e1.GetTo().GetProperty(Prop).Type != GrammarTerminal {
-						allTerminal = false
-						break
-					}
-				}
-
-			}
-			if allTerminal {
-				terminals = append(terminals, v)
-			}
+	// some sufficiently large value
+	// indicating not-reachable
+	inf := int(1e8)
+	distance := make([]int, numVertices)
+	for i, vertex := range vertices {
+		if vertex.GetProperty(Prop).Type == GrammarTerminal {
+			distance[i] = 0
+		} else {
+			distance[i] = inf
 		}
 	}
 
-	for _, v := range g.GetInternal().GetAllVertices() {
+	// Bellman-ford-like process;
+	// this should terminate within O(numVertices) iterations,
+	// i.e. no more relaxations after that
+	round := 0
+	for {
+		round++
+		stop := true
+		for index, current := range vertices {
+			adjacent := g.internal.GetOutEdges(current)
+			pre := distance[index]
+			if current.GetProperty(Prop).Type == GrammarTerminal {
+				// do nothing
+			} else if current.GetProperty(Prop).Type == GrammarOR {
+				// 1 + min of {distances of outgoing neighbors}
+				best := inf
+				for _, e := range adjacent {
+					next_index := vertexMap[e.GetTo().GetID()]
+					best = min(best, distance[next_index])
+				}
+				best += 1
+				distance[index] = min(distance[index], best)
+			} else {
+				// 1 + sum of {distances of outgoing neighbors}
+				sum := 0
+				for _, e := range adjacent {
+					next_index := vertexMap[e.GetTo().GetID()]
+					sum += distance[next_index]
+					// watch out for overflows
+					if distance[next_index] >= inf {
+						break
+					}
+				}
+				sum += 1
+				distance[index] = min(distance[index], sum)
+			}
+			if pre != distance[index] {
+				stop = false
+			}
+		}
+		if stop {
+			fmt.Println(round)
+			break
+		}
+	}
+
+	for index, v := range g.GetInternal().GetAllVertices() {
 		if v.GetProperty(Prop).Type == GrammarTerminal {
 			continue
 		}
 		prop := v.GetProperty(Prop)
-		prop.DistanceToTerminal = math.MaxInt
-		for _, term := range terminals {
-			prop.DistanceToTerminal = min(int(distance[v.GetID()][term.GetID()]), prop.DistanceToTerminal)
-		}
+		prop.DistanceToTerminal = distance[index]
 		v.SetProperty(Prop, prop)
 	}
 }

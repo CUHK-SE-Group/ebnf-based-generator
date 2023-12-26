@@ -1,7 +1,6 @@
 package schemas
 
 import (
-	"errors"
 	"fmt"
 	"log/slog"
 	"math"
@@ -15,19 +14,12 @@ const (
 	OrHandlerName       = "or_handler"
 	IDHandlerName       = "id_handler"
 	BracketHandlerName  = "Bracket_handler"
-	ParenHandlerName    = "paren_handler"
 	TerminalHandlerName = "terminal_handler"
 	SubHandlerName      = "sub_handler"
-	BraceHandlerName    = "brace_handler"
 	RepHandlerName      = "rep_handler"
 	TraceHandlerName    = "trace_handler"
 	OptionHandlerName   = "option_handler"
 )
-
-var errViolateBuildIn = errors.New("can not replace build-in handler func")
-var buildIn = []string{}
-var ErrDuplicatedHandler = errors.New("duplicated handler registration")
-var funcMap = make(map[GrammarType][]func() Handler)
 
 type Handler interface {
 	Handle(*Chain, *Context, ResponseCallBack)
@@ -36,6 +28,7 @@ type Handler interface {
 	Type() GrammarType
 }
 
+// CatHandler default implementation for Catenation
 type CatHandler struct {
 }
 
@@ -52,7 +45,6 @@ func (h *CatHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
 	for i := 0; i < len(cur.GetSymbols()); i++ {
 		ctx.Result.AddEdge(cur, (cur.GetSymbols())[i])
 	}
-
 	chain.Next(ctx, cb)
 }
 
@@ -68,6 +60,7 @@ func (h *CatHandler) Type() GrammarType {
 	return GrammarProduction | GrammarCatenate
 }
 
+// OrHandler default implementation of Or, randomly choose a child to generate
 type OrHandler struct {
 }
 
@@ -104,16 +97,13 @@ func (h *IDHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
 	cur := ctx.SymbolStack.Top()
 	ctx.SymbolStack.Pop()
 
-	//if len(cur.GetSymbols()) != 0 {
-	//	slog.Error("Pattern mismatched[Identifier]")
-	//	//return
-	//}
+	// 是Identifier, 那么去找新的production
 	node := ctx.Grammar.GetNode(cur.GetContent())
 	if node.internal == nil {
 		slog.Error("The identifier does not Existed", "id", cur.GetContent())
-		ctx.Result.AddEdge(cur, node)
 		return // omit error
 	}
+	ctx.Result.AddEdge(cur, node)
 	ctx.SymbolStack.Push(node)
 	chain.Next(ctx, cb)
 }
@@ -136,6 +126,7 @@ type RepHandler struct {
 func (r *RepHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
 	cur := ctx.SymbolStack.Top()
 	ctx.SymbolStack.Pop()
+	// 默认设置 10% 的概率来重复一次
 	if rand.Intn(10) > 8 {
 		ctx.SymbolStack.Push(cur.GetSymbols()...)
 		for _, node := range cur.GetSymbols() {
@@ -182,15 +173,7 @@ func (h *TermHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
 		slog.Error("Pattern mismatched[Terminal]")
 		return
 	}
-	//result := ""
-	//regex := h.stripQuote(cur.GetContent())
-	//if h.isTermPreserve(cur) {
-	//	result = regex
-	//} else {
-	//	result = regex
-	//}
-	//fmt.Println(result)
-	ctx.Result.AddEdge(cur, cur)
+	ctx.Result.AddEdge(cur, cur) // 用一个自环标记到达了最后的终结符节点
 	chain.Next(ctx, cb)
 }
 
@@ -217,6 +200,7 @@ func (h *BracketHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack)
 		slog.Error("Pattern mismatched[Identifier]")
 		return
 	}
+	// todo, 注释这段代码。这段代码是为了测试
 	if strings.Contains(cur.GetContent(), "SP") {
 		for i := len(children) - 1; i >= 0; i-- {
 			ctx.SymbolStack.Push(children[i])

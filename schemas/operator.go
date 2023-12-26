@@ -37,42 +37,45 @@ func randomKey(m map[string]int) string {
 
 func init() {
 	DefinedBeforeUse = Constraint{
-		FirstOp: func(ctx *Context) (*Context, error) {
-			cur := ctx.SymbolStack.Top()
-			if cur.GetType() != GrammarTerminal {
-				return ctx, errors.New("the symbol type is not GrammarTerminal")
-			}
-			result, err := reggen.Generate(cur.GetContent(), 1)
-			if err != nil {
-				return ctx, errors.Join(err, errors.New("reggen failed"))
-			}
-			//ctx.Result += result
-			fmt.Println(result)
-
-			txn := ctx.Storage.Txn(true)
-			raw, err := txn.First("nodeRuntimeInfo", "id", trimNumber(cur.GetID()))
-			if err != nil {
-				panic(err)
-			}
-			var node *NodeRuntimeInfo
-			if raw == nil {
-				node = &NodeRuntimeInfo{
-					Count:        1,
-					ID:           trimNumber(cur.GetID()),
-					SampledValue: make(map[string]int),
+		FirstOp: Action{
+			Type: FUNC,
+			Func: func(ctx *Context) (*Context, error) {
+				cur := ctx.SymbolStack.Top()
+				if cur.GetType() != GrammarTerminal {
+					return ctx, errors.New("the symbol type is not GrammarTerminal")
 				}
-			} else {
-				node = raw.(*NodeRuntimeInfo)
-			}
-			node.SampledValue[result]++
-			node.Count++
-			err = txn.Insert("nodeRuntimeInfo", node)
-			if err != nil {
-				panic(err)
-			}
-			txn.Commit()
-			ctx.SymbolStack.Pop()
-			return ctx, nil
+				result, err := reggen.Generate(cur.GetContent(), 1)
+				if err != nil {
+					return ctx, errors.Join(err, errors.New("reggen failed"))
+				}
+				//ctx.Result += result
+				fmt.Println(result)
+
+				txn := ctx.Storage.Txn(true)
+				raw, err := txn.First("nodeRuntimeInfo", "id", trimNumber(cur.GetID()))
+				if err != nil {
+					panic(err)
+				}
+				var node *NodeRuntimeInfo
+				if raw == nil {
+					node = &NodeRuntimeInfo{
+						Count:        1,
+						ID:           trimNumber(cur.GetID()),
+						SampledValue: make(map[string]int),
+					}
+				} else {
+					node = raw.(*NodeRuntimeInfo)
+				}
+				node.SampledValue[result]++
+				node.Count++
+				err = txn.Insert("nodeRuntimeInfo", node)
+				if err != nil {
+					panic(err)
+				}
+				txn.Commit()
+				ctx.SymbolStack.Pop()
+				return ctx, nil
+			},
 		},
 		SecondOp: Action{
 			Type: FUNC,
@@ -98,33 +101,36 @@ func init() {
 		},
 	}
 	MaxLimit = Constraint{
-		FirstOp: func(ctx *Context) (*Context, error) {
-			cur := ctx.SymbolStack.Top()
-			txn := ctx.Storage.Txn(true)
-			raw, err := txn.First("nodeRuntimeInfo", "id", trimNumber(cur.GetID()))
-			if err != nil {
-				panic(err)
-			}
-			var node *NodeRuntimeInfo
-			if raw == nil {
-				node = &NodeRuntimeInfo{
-					Count:        1,
-					ID:           trimNumber(cur.GetID()),
-					SampledValue: make(map[string]int),
+		FirstOp: Action{
+			Type: FUNC,
+			Func: func(ctx *Context) (*Context, error) {
+				cur := ctx.SymbolStack.Top()
+				txn := ctx.Storage.Txn(true)
+				raw, err := txn.First("nodeRuntimeInfo", "id", trimNumber(cur.GetID()))
+				if err != nil {
+					panic(err)
 				}
-			} else {
-				node = raw.(*NodeRuntimeInfo)
-			}
-			node.Count++
-			if node.Count > 3 {
-				ctx.Mode = ShrinkMode
-			}
-			err = txn.Insert("nodeRuntimeInfo", node)
-			if err != nil {
-				panic(err)
-			}
-			txn.Commit()
-			return ctx, ErrPassThrough
+				var node *NodeRuntimeInfo
+				if raw == nil {
+					node = &NodeRuntimeInfo{
+						Count:        1,
+						ID:           trimNumber(cur.GetID()),
+						SampledValue: make(map[string]int),
+					}
+				} else {
+					node = raw.(*NodeRuntimeInfo)
+				}
+				node.Count++
+				if node.Count > 3 {
+					ctx.Mode = ShrinkMode
+				}
+				err = txn.Insert("nodeRuntimeInfo", node)
+				if err != nil {
+					panic(err)
+				}
+				txn.Commit()
+				return ctx, ErrPassThrough
+			},
 		},
 		SecondOp: Action{
 			Type: FUNC,
