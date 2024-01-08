@@ -8,7 +8,9 @@ import (
 	"github.com/CUHK-SE-Group/generic-generator/graph"
 	"github.com/CUHK-SE-Group/generic-generator/parser"
 	"github.com/CUHK-SE-Group/generic-generator/schemas"
+	"github.com/CUHK-SE-Group/generic-generator/schemas/query"
 	"log"
+	"log/slog"
 	"math"
 	"math/rand"
 	"os"
@@ -90,15 +92,29 @@ type MonitorHandler struct {
 }
 
 func (h *MonitorHandler) Handle(chain *schemas.Chain, ctx *schemas.Context, cb schemas.ResponseCallBack) {
-	//cur := ctx.SymbolStack.Top()
-	//for key, fn := range schemas.FirstPlaceNode {
-	//	if len(ctx.SymbolStack.ProductionTrace) > 0 && !strings.Contains(cur.GetID(), ctx.SymbolStack.ProductionTrace[len(ctx.SymbolStack.ProductionTrace)-1]) {
-	//		continue
-	//	}
-	//	if query.MatchPattern(ctx.SymbolStack.ProductionTrace, key) {
-	//		ctx, _ = fn(ctx)
-	//	}
-	//}
+	if ctx.Constraint == nil {
+		chain.Next(ctx, cb)
+		return
+	}
+	constraints := ctx.Constraint.GetConstraints()
+	for _, v := range constraints {
+		if query.MatchPattern(ctx.SymbolStack.ProductionTrace, v.FirstNode) {
+			switch v.FirstOp.Type {
+			case schemas.FUNC:
+				ctx, _ = v.FirstOp.Func(ctx)
+			case schemas.REGEX:
+
+			}
+		}
+		if query.MatchPattern(ctx.SymbolStack.ProductionTrace, v.SecondNode) {
+			switch v.SecondOp.Type {
+			case schemas.FUNC:
+				ctx, _ = v.SecondOp.Func(ctx)
+			case schemas.REGEX:
+
+			}
+		}
+	}
 	chain.Next(ctx, cb)
 }
 
@@ -119,7 +135,6 @@ func TestDefaultHandler(t *testing.T) {
 	cons.FirstNode = "expr/id"
 	cons.SecondNode = "id"
 
-	schemas.Register(cons)
 	g, err := parser.Parse("./testdata/complete/tinyc.ebnf", "program")
 	if err != nil {
 		panic(err)
@@ -130,7 +145,7 @@ func TestDefaultHandler(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	ctx, err := schemas.NewContext(g, "program", context.Background(), nil)
+	ctx, err := schemas.NewContext(g, "program", context.Background(), nil, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -152,15 +167,15 @@ func TestWeightedHandler(t *testing.T) {
 	cons := schemas.MaxLimit
 	cons.FirstNode = "paren_expr"
 	cons.SecondNode = "paren_expr"
-	schemas.Register(cons)
+	consg := schemas.NewConstraintGraph()
+	consg.AddBinaryConstraint(cons)
 	g.MergeProduction()
 	g.BuildShortestNotation()
 	chain, err := schemas.CreateChain("test", &MonitorHandler{}, &schemas.CatHandler{}, &schemas.IDHandler{}, &schemas.TermHandler{}, &WeightedHandler{}, &schemas.OrHandler{}, &schemas.RepHandler{}, &schemas.BracketHandler{})
 	if err != nil {
 		panic(err)
 	}
-	ctx, err := schemas.NewContext(g, "program", context.Background(), nil)
-	ctx.Mode = schemas.ShrinkMode
+	ctx, err := schemas.NewContext(g, "program", context.Background(), consg, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -168,7 +183,6 @@ func TestWeightedHandler(t *testing.T) {
 		chain.Next(ctx, func(result *schemas.Result) {
 			ctx = result.GetCtx()
 			ctx.HandlerIndex = 0
-			fmt.Println(ctx.Result.GetResult())
 		})
 	}
 	fmt.Println(ctx.Result.GetResult())
@@ -230,7 +244,7 @@ func TestWeightHandlerManyTimes(t *testing.T) {
 		fmt.Printf("generated %d instances, use %s\n", num, duration)
 	}()
 	for i := 0; i < num; i++ {
-		ctx, err := schemas.NewContext(g, "program", context.Background(), nil)
+		ctx, err := schemas.NewContext(g, "program", context.Background(), nil, nil)
 		ctx.Mode = schemas.ShrinkMode
 		if err != nil {
 			panic(err)
@@ -260,29 +274,116 @@ func TestDefaultHandlerCypher(t *testing.T) {
 	cons := schemas.MaxLimit
 	cons.FirstNode = "Expression"
 	cons.SecondNode = "Expression"
-	schemas.Register(cons)
 	g, err := parser.Parse("./testdata/complete/Cypher.ebnf", "Cypher")
 	if err != nil {
 		panic(err)
 	}
 	g.MergeProduction()
 	g.BuildShortestNotation()
-	chain, err := schemas.CreateChain("test", &schemas.OptionHandler{}, &MonitorHandler{}, &schemas.CatHandler{}, &schemas.IDHandler{}, &schemas.SubHandler{}, &WeightedHandler{}, &schemas.TermHandler{}, &schemas.RepHandler{}, &schemas.BracketHandler{})
+	consg := schemas.NewConstraintGraph()
+	consg.AddBinaryConstraint(cons)
+	chain, err := schemas.CreateChain("test", &MonitorHandler{}, &schemas.OptionHandler{}, &MonitorHandler{}, &schemas.CatHandler{}, &schemas.IDHandler{}, &schemas.SubHandler{}, &WeightedHandler{}, &schemas.TermHandler{}, &schemas.RepHandler{}, &schemas.BracketHandler{})
 	if err != nil {
 		panic(err)
 	}
-	for i := 0; i < 100; i++ {
-		ctx, err := schemas.NewContext(g, "Cypher", context.Background(), nil)
-		if err != nil {
-			panic(err)
-		}
-
-		for !ctx.GetFinish() {
-			chain.Next(ctx, func(result *schemas.Result) {
-				ctx = result.GetCtx()
-				ctx.HandlerIndex = 0
-			})
-		}
-		fmt.Println(ctx.Result)
+	ctx, err := schemas.NewContext(g, "Cypher", context.Background(), consg, nil)
+	if err != nil {
+		panic(err)
 	}
+	for !ctx.GetFinish() {
+		chain.Next(ctx, func(result *schemas.Result) {
+			ctx = result.GetCtx()
+			ctx.HandlerIndex = 0
+		})
+	}
+	fmt.Println(ctx.Result.GetResult())
+}
+
+func TestLLVMIRHandler(t *testing.T) {
+	g, err := parser.Parse("./testdata/complete/llvmir.ebnf", "module")
+	if err != nil {
+		panic(err)
+	}
+	g.MergeProduction()
+	g.BuildShortestNotation()
+	chain, err := schemas.CreateChain("test", &MonitorHandler{}, &schemas.PlusHandler{}, &schemas.CatHandler{}, &schemas.IDHandler{}, &schemas.TermHandler{}, &WeightedHandler{}, &schemas.OrHandler{}, &schemas.RepHandler{}, &schemas.BracketHandler{})
+	if err != nil {
+		panic(err)
+	}
+	ctx, err := schemas.NewContext(g, "module", context.Background(), nil, nil)
+	if err != nil {
+		panic(err)
+	}
+	for !ctx.GetFinish() {
+		chain.Next(ctx, func(result *schemas.Result) {
+			ctx = result.GetCtx()
+			ctx.HandlerIndex = 0
+		})
+	}
+	fmt.Printf("%s\n", ctx.Result.GetResult())
+}
+
+type EBPFTermHandler struct {
+}
+
+func (h *EBPFTermHandler) isTermPreserve(g *schemas.Node) bool {
+	content := g.GetContent()
+	return (content[0] == content[len(content)-1]) && ((content[0] == '\'') || content[0] == '"')
+}
+
+func (h *EBPFTermHandler) stripQuote(content string) string {
+	if content[0] == content[len(content)-1] {
+		if (content[0] == '\'') || (content[0] == '"') {
+			return content[1 : len(content)-1]
+		}
+	}
+	return content
+}
+
+func (h *EBPFTermHandler) Handle(chain *schemas.Chain, ctx *schemas.Context, cb schemas.ResponseCallBack) {
+	cur := ctx.SymbolStack.Top()
+	ctx.SymbolStack.Pop()
+
+	if len(cur.GetSymbols()) != 0 {
+		slog.Error("Pattern mismatched[Terminal]")
+		return
+	}
+	ctx.Result.AddEdge(cur, cur) // 用一个自环标记到达了最后的终结符节点
+	chain.Next(ctx, cb)
+}
+
+func (h *EBPFTermHandler) HookRoute() []regexp.Regexp {
+	return make([]regexp.Regexp, 0)
+}
+
+func (h *EBPFTermHandler) Name() string {
+	return "ebpfterminalhandler"
+}
+
+func (h *EBPFTermHandler) Type() schemas.GrammarType {
+	return schemas.GrammarTerminal
+}
+
+func TestEBPFHandler(t *testing.T) {
+	g, err := parser.Parse("./testdata/complete/llvmir.ebnf", "module")
+	if err != nil {
+		panic(err)
+	}
+	g.MergeProduction()
+	g.BuildShortestNotation()
+	chain, err := schemas.CreateChain("test", &MonitorHandler{}, &schemas.PlusHandler{}, &schemas.CatHandler{}, &schemas.IDHandler{}, &schemas.TermHandler{}, &WeightedHandler{}, &schemas.OrHandler{}, &schemas.RepHandler{}, &schemas.BracketHandler{})
+	if err != nil {
+		panic(err)
+	}
+	ctx, err := schemas.NewContext(g, "module", context.Background(), nil, nil)
+	if err != nil {
+		panic(err)
+	}
+	for !ctx.GetFinish() {
+		chain.Next(ctx, func(result *schemas.Result) {
+			ctx = result.GetCtx()
+			ctx.HandlerIndex = 0
+		})
+	}
+	fmt.Printf("%s\n", ctx.Result.GetResult())
 }

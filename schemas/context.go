@@ -87,6 +87,7 @@ type Context struct {
 
 	VisitedEdge map[string]int
 	Mode        Mode
+	Constraint  *ConstraintGraph
 }
 
 type NodeRuntimeInfo struct {
@@ -98,7 +99,7 @@ type NodeRuntimeInfo struct {
 func (c *Context) GetFinish() bool {
 	return c.finish
 }
-func NewContext(grammarMap *Grammar, startSymbol string, ctx context.Context, gendb func() *memdb.MemDB) (*Context, error) {
+func NewContext(grammarMap *Grammar, startSymbol string, ctx context.Context, cons *ConstraintGraph, gendb func() *memdb.MemDB) (*Context, error) {
 	node := grammarMap.GetNode(startSymbol)
 	if node == nil {
 		return nil, errors.New("no such symbol")
@@ -144,5 +145,6 @@ func NewContext(grammarMap *Grammar, startSymbol string, ctx context.Context, ge
 			EdgeHistory: make([]string, 0),
 			symbolCnt:   make(map[string]int),
 		},
+		Constraint: cons,
 	}, nil
 }

@@ -1,0 +1,50 @@
+controlFlowGraph = basicBlock+ ;
+
+basicBlock = (instruction, '\n')+, jumpInstruction;
+
+instruction = arithmeticAndJump | loadAndStore;
+
+arithmeticAndJump = aluInsType, '(', code, src, dst, offset, imm, type, len, mapfd, size, tgt, func, op, ')';
+
+aluInsType = BPF_ALU64_REG_OFF
+    | BPF_ALU64_REG
+    | BPF_ALU32_REG_OFF
+    | BPF_ALU32_REG
+    | BPF_ALU64_IMM_OFF
+    | BPF_ALU64_IMM
+    | BPF_ALU32_IMM_OFF
+    | BPF_ALU32_IMM
+    | BPF_ENDIAN
+    | BPF_BSWAP
+    | BPF_MOV64_REG
+    | BPF_MOV32_REG
+    | BPF_MOV64_IMM
+    | BPF_MOV32_IMM
+    | BPF_MOVSX64_REG
+    | BPF_MOVSX32_REG
+    | BPF_ZEXT_REG
+    | BPF_LD_IMM64
+    | BPF_LD_IMM64_RAW
+    | BPF_LD_MAP_FD
+    | BPF_MOV64_RAW
+    | BPF_MOV32_RAW
+    | BPF_LD_ABS
+    | BPF_LD_IND
+    | BPF_LDX_MEM
+    | BPF_LDX_MEMSX
+    | BPF_STX_MEM
+    | BPF_ATOMIC_OP
+    | BPF_STX_XADD
+    | BPF_ST_MEM
+    | BPF_JMP_REG
+    | BPF_JMP_IMM
+    | BPF_JMP32_REG
+    | BPF_JMP32_IMM
+    | BPF_JMP_A
+    | BPF_CALL_REL
+    | BPF_CALL_IMM
+    | BPF_EMIT_CALL
+    | BPF_RAW_INSN
+    | BPF_EXIT_INSN
+    | BPF_ST_NOSPEC
+    ;

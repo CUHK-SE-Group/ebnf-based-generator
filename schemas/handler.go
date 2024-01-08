@@ -13,7 +13,8 @@ const (
 	CatHandlerName      = "cat_handler"
 	OrHandlerName       = "or_handler"
 	IDHandlerName       = "id_handler"
-	BracketHandlerName  = "Bracket_handler"
+	BracketHandlerName  = "bracket_handler"
+	PlusHandlerName     = "plus_handler"
 	TerminalHandlerName = "terminal_handler"
 	SubHandlerName      = "sub_handler"
 	RepHandlerName      = "rep_handler"
@@ -153,7 +154,7 @@ type TermHandler struct {
 
 func (h *TermHandler) isTermPreserve(g *Node) bool {
 	content := g.GetContent()
-	return (content[0] == content[len(content)-1]) && (content[0] == '\'')
+	return (content[0] == content[len(content)-1]) && ((content[0] == '\'') || content[0] == '"')
 }
 
 func (h *TermHandler) stripQuote(content string) string {
@@ -222,6 +223,42 @@ func (h *BracketHandler) Name() string {
 
 func (h *BracketHandler) Type() GrammarType {
 	return GrammarOptional
+}
+
+type PlusHandler struct {
+}
+
+func (h *PlusHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
+	cur := ctx.SymbolStack.Top()
+	ctx.SymbolStack.Pop()
+	children := cur.GetSymbols()
+	if len(children) == 0 {
+		slog.Error("Pattern mismatched[Identifier]")
+		return
+	}
+	for j := 0; j < rand.Intn(3); j++ {
+		for i := len(children) - 1; i >= 0; i-- {
+			ctx.SymbolStack.Push(children[i])
+		}
+		for i := 0; i < len(children); i++ {
+			ctx.Result.AddEdge(cur, children[i])
+		}
+	}
+
+	chain.Next(ctx, cb)
+
+}
+
+func (h *PlusHandler) HookRoute() []regexp.Regexp {
+	return make([]regexp.Regexp, 0)
+}
+
+func (h *PlusHandler) Name() string {
+	return PlusHandlerName
+}
+
+func (h *PlusHandler) Type() GrammarType {
+	return GrammarPLUS
 }
 
 type SubHandler struct {

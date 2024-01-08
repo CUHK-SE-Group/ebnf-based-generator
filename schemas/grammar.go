@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"github.com/CUHK-SE-Group/generic-generator/graph"
 	A "github.com/IBM/fp-go/array"
+	"github.com/lucasjones/reggen"
 	"log/slog"
 	"math"
 	"sort"
 	"strconv"
 	"strings"
-	"time"
 )
 
 type GrammarType int
@@ -129,6 +129,13 @@ func (d *Derivation) AddEdge(from, to *Node) {
 	d.symbolCnt[to.GetID()]++ // denote the `to` node to a new node
 
 }
+func isTermPreserve(content string) bool {
+	return (content[0] == content[len(content)-1]) && ((content[0] == '\'') || content[0] == '"')
+}
+func printBinary(num int64, bits int) string {
+	formatStr := fmt.Sprintf("%%0%db", bits)
+	return fmt.Sprintf(formatStr, num)
+}
 
 func (d *Derivation) GetResult() string {
 	d.symbolCnt = make(map[string]int)
@@ -136,36 +143,28 @@ func (d *Derivation) GetResult() string {
 	for _, e := range d.EdgeHistory {
 		from, to := ExtractEdgeID(e)
 		if from == to {
-			res += d.GetNode(to).GetContent()
+			cur := d.GetNode(to)
+			content := cur.GetContent()
+			if isTermPreserve(content) {
+				tmp := strings.Trim(content, "'\"")
+				switch content[0] {
+				case '"':
+					var err error
+					content, err = reggen.Generate(tmp, 10)
+					if err != nil {
+						panic(err)
+					}
+				case '\'':
+					content = tmp
+				default:
+					panic("error in generating terminal")
+				}
+			}
+			res += content
 			d.symbolCnt[to]++
 			continue
 		}
-		//if d.GetNode(to).GetType() == GrammarTerminal {
-		//	res += d.GetNode(to).GetContent()
-		//}
 	}
-	return res
-	//var DFS func(node *Node)
-	//DFS = func(node *Node) {
-	//	if node == nil {
-	//		return
-	//	}
-	//
-	//	if node.GetType() == GrammarTerminal {
-	//		res += node.GetContent()
-	//		return
-	//	}
-	//
-	//	if node.GetType() == GrammarID {
-	//		DFS(d.GetNode(node.GetContent()))
-	//		return
-	//	}
-	//
-	//	for _, child := range node.GetSymbols() {
-	//		DFS(child)
-	//	}
-	//}
-	//DFS(d.GetNode(d.startSym))
 	return res
 }
 
@@ -334,6 +333,9 @@ func updateVisitedNodes(node *TrieNode) bool {
 func (g *Grammar) BuildShortestNotation() {
 	vertices := g.internal.GetAllVertices()
 	numVertices := len(vertices)
+	sort.Slice(vertices, func(i, j int) bool {
+		return vertices[i].GetID() > vertices[j].GetID()
+	})
 	vertexMap := make(map[string]int)
 	for i, vertex := range vertices {
 		vertexMap[vertex.GetID()] = i
@@ -364,6 +366,9 @@ func (g *Grammar) BuildShortestNotation() {
 			if current.GetProperty(Prop).Type == GrammarTerminal {
 				// do nothing
 			} else if current.GetProperty(Prop).Type == GrammarOR {
+				//if strings.Contains(current.GetProperty(Prop).Content, "1") {
+				//	fmt.Println()
+				//}
 				// 1 + min of {distances of outgoing neighbors}
 				best := inf
 				for _, e := range adjacent {
@@ -385,6 +390,9 @@ func (g *Grammar) BuildShortestNotation() {
 				}
 				sum += 1
 				distance[index] = min(distance[index], sum)
+				if distance[index] < 1 {
+					fmt.Println("fuck")
+				}
 			}
 			if pre != distance[index] {
 				stop = false
@@ -396,7 +404,7 @@ func (g *Grammar) BuildShortestNotation() {
 		}
 	}
 
-	for index, v := range g.GetInternal().GetAllVertices() {
+	for index, v := range vertices {
 		if v.GetProperty(Prop).Type == GrammarTerminal {
 			continue
 		}
@@ -404,64 +412,6 @@ func (g *Grammar) BuildShortestNotation() {
 		prop.DistanceToTerminal = distance[index]
 		v.SetProperty(Prop, prop)
 	}
-}
-func (g *Grammar) BuildShortestNotation1() map[string]map[string]float64 {
-	t1 := time.Now()
-	defer func() {
-		duration := time.Since(t1)
-		fmt.Println(duration)
-	}()
-	vertices := g.internal.GetAllVertices()
-	numVertices := len(vertices)
-	vertexMap := make(map[string]int) // 用于映射顶点 ID 到其索引
-	for i, vertex := range vertices {
-		vertexMap[vertex.GetID()] = i
-	}
-
-	// 初始化距离矩阵
-	dist := make([][]float64, numVertices)
-	for i := range dist {
-		dist[i] = make([]float64, numVertices)
-		for j := range dist[i] {
-			if i == j {
-				dist[i][j] = 0
-			} else {
-				dist[i][j] = math.Inf(1)
-			}
-		}
-	}
-
-	// 设置初始边的权重
-	for _, edge := range g.internal.GetAllEdges() {
-		fromID := edge.GetFrom().GetID()
-		toID := edge.GetTo().GetID()
-		weight := 10.0
-		if edge.GetTo().GetProperty(Prop).Type == GrammarProduction {
-			weight = 1.0
-		}
-		dist[vertexMap[fromID]][vertexMap[toID]] = weight
-	}
-
-	// 应用 Floyd 算法
-	for k := 0; k < numVertices; k++ {
-		for i := 0; i < numVertices; i++ {
-			for j := 0; j < numVertices; j++ {
-				if dist[i][k]+dist[k][j] < dist[i][j] {
-					dist[i][j] = dist[i][k] + dist[k][j]
-				}
-			}
-		}
-	}
-
-	// 转换为 map[string]map[string]float64
-	distMap := make(map[string]map[string]float64)
-	for i, vi := range vertices {
-		distMap[vi.GetID()] = make(map[string]float64)
-		for j, vj := range vertices {
-			distMap[vi.GetID()][vj.GetID()] = dist[i][j]
-		}
-	}
-	return distMap
 }
 
 type Node struct {

@@ -1,0 +1,50 @@
+identifier = "id^[1-9][0-9]$" ;
+integer    = "^[1-9][0-9][0-9]$";
+string     = "\'itisastring\'$";
+
+type       = ('i',integer)
+           | ('[',integer, [SP],'x', [SP],type,']')
+           | ('void')
+           | ('%', identifier)
+           ;
+
+struct_def = '%', identifier, '=', 'type', '{', type_list, '}' ;
+type_list  = type, (',', type)* ;
+
+value      = identifier
+           | integer
+           | string
+           ;
+
+instruction= identifier, '=', operation ;
+
+operation  = ('add', [SP], type, [SP], value, ',', [SP], value)
+           | ('sub', [SP], type, [SP], value, ',', [SP], value)
+           | ('mul', [SP], type, [SP], value, ',', [SP], value)
+           | ('div', [SP], type, [SP], value, ',', [SP], value)
+           | ('alloca', [SP], type)
+           | ('store', [SP], type, [SP], value, ',', [SP], type, [SP], value)
+           | ('load', [SP], type, ',', [SP], type, [SP], value)
+           | ('br', [SP], label)
+           | ('icmp', [SP], condition, [SP], type, [SP], value, ',', [SP], value)
+           | ('call', [SP], type, [SP], '@', identifier, [SP], '(', args, ')')
+           | ('ret', [SP], type, [SP], value)
+           ;
+
+condition  = 'eq' | 'ne' | 'sgt' | 'sge' | 'slt' | 'sle' ;
+
+function   = 'define', [SP],type, [SP], '@', identifier, [SP], '(', params, ')', '{', basic_block+, '}' ;
+params     = (param, (',', [SP],param)*) | ' ' ;
+param      = type, [SP],identifier ;
+basic_block = "\n", label, ":\n", ("\t", instruction, "\n")+ ;
+
+global_var = '@', identifier, '=', 'global', type, value ;
+
+constant   = '@', identifier, '=', 'private', ' ', 'unnamed_addr', 'constant', type, value ;
+
+module     =  function;
+
+label = "Label^\d+$" ;
+args = arg, (',', arg)* | ' ' ;
+arg  = type, value ;
+SP = ' ';

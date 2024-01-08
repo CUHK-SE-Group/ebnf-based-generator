@@ -2,15 +2,13 @@ package parser
 
 import (
 	"fmt"
-	"log/slog"
-	"os"
-	"strconv"
-	"strings"
-
 	"github.com/CUHK-SE-Group/generic-generator/log"
 	"github.com/CUHK-SE-Group/generic-generator/parser/ebnf"
 	"github.com/CUHK-SE-Group/generic-generator/schemas"
 	"github.com/antlr4-go/antlr/v4"
+	"log/slog"
+	"os"
+	"strconv"
 )
 
 type ebnfListener struct {
@@ -142,8 +140,7 @@ func (l *ebnfListener) EnterID(c *ebnf.IDContext) {
 
 func (l *ebnfListener) EnterQUOTE(c *ebnf.QUOTEContext) {
 	l.logger.Debug("encountered quote", "val", c.GetText())
-	content := strings.Trim(c.GetText(), "'\"")
-	l.addSymbolTop(schemas.NewNode(l.grammar, schemas.GrammarTerminal, l.generateId(), content))
+	l.addSymbolTop(schemas.NewNode(l.grammar, schemas.GrammarTerminal, l.generateId(), c.GetText()))
 }
 
 func (l *ebnfListener) EnterCHOICE(c *ebnf.CHOICEContext) {
