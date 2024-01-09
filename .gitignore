@@ -3,7 +3,7 @@
 .DS_Store
 .antlr/
 *output*
-parser/ebnf/
+#parser/ebnf/
 parser/figures/
 *.prof
 *.tokens
