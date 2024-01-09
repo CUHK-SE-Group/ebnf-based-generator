@@ -143,7 +143,7 @@ func NewContext(grammarMap *Grammar, startSymbol string, ctx context.Context, co
 		Result: &Derivation{
 			Grammar:     NewGrammar(startSymbol),
 			EdgeHistory: make([]string, 0),
-			symbolCnt:   make(map[string]int),
+			SymbolCnt:   make(map[string]int),
 		},
 		Constraint: cons,
 	}, nil

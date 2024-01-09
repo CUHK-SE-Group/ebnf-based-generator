@@ -23,7 +23,9 @@ type ebnfListener struct {
 }
 
 func newEbnfListener(startSym string) *ebnfListener {
-	textHandler := slog.NewTextHandler(os.Stderr, nil)
+	textHandler := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+		Level: slog.LevelError,
+	})
 	callerInfoHandler := log.NewCallerInfoHandler(textHandler)
 	logger := slog.New(callerInfoHandler)
 

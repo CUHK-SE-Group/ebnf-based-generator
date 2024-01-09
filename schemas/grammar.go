@@ -110,11 +110,11 @@ func (t *TrieNode) Insert(n *Node, path []string, index *map[string]*TrieNode) {
 type Derivation struct {
 	*Grammar
 	EdgeHistory []string
-	symbolCnt   map[string]int // 为了给语法图上的Node做标记
+	SymbolCnt   map[string]int // 为了给语法图上的Node做标记
 }
 
 func (d *Derivation) getNodeID(id string) string {
-	return fmt.Sprintf("%s#%d", id, d.symbolCnt[id])
+	return fmt.Sprintf("%s#%d", id, d.SymbolCnt[id])
 }
 
 func (d *Derivation) AddEdge(from, to *Node) {
@@ -126,19 +126,15 @@ func (d *Derivation) AddEdge(from, to *Node) {
 
 	newfrom.AddSymbol(newto)
 	d.EdgeHistory = append(d.EdgeHistory, GetEdgeID(newfrom.GetID(), newto.GetID()))
-	d.symbolCnt[to.GetID()]++ // denote the `to` node to a new node
+	d.SymbolCnt[to.GetID()]++ // denote the `to` node to a new node
 
 }
 func isTermPreserve(content string) bool {
 	return (content[0] == content[len(content)-1]) && ((content[0] == '\'') || content[0] == '"')
 }
-func printBinary(num int64, bits int) string {
-	formatStr := fmt.Sprintf("%%0%db", bits)
-	return fmt.Sprintf(formatStr, num)
-}
 
-func (d *Derivation) GetResult() string {
-	d.symbolCnt = make(map[string]int)
+func (d *Derivation) GetResult(custom func(content string) string) string {
+	d.SymbolCnt = make(map[string]int)
 	res := ""
 	for _, e := range d.EdgeHistory {
 		from, to := ExtractEdgeID(e)
@@ -160,8 +156,12 @@ func (d *Derivation) GetResult() string {
 					panic("error in generating terminal")
 				}
 			}
+			if custom != nil {
+				content = custom(content)
+			}
+
 			res += content
-			d.symbolCnt[to]++
+			d.SymbolCnt[to]++
 			continue
 		}
 	}
@@ -517,6 +517,11 @@ func (g *Node) GetSymbol(idx int) *Node {
 
 func (g *Node) GetContent() string {
 	return g.internal.GetProperty(Prop).Content
+}
+func (g *Node) SetContent(content string) {
+	p := g.internal.GetProperty(Prop)
+	p.Content = content
+	g.internal.SetProperty(Prop, p)
 }
 func (g *Node) GetDistance() int {
 	return g.internal.GetProperty(Prop).DistanceToTerminal

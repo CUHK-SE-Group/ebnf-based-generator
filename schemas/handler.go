@@ -100,7 +100,7 @@ func (h *IDHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
 
 	// 是Identifier, 那么去找新的production
 	node := ctx.Grammar.GetNode(cur.GetContent())
-	if node.internal == nil {
+	if node == nil {
 		slog.Error("The identifier does not Existed", "id", cur.GetContent())
 		return // omit error
 	}
@@ -236,7 +236,7 @@ func (h *PlusHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
 		slog.Error("Pattern mismatched[Identifier]")
 		return
 	}
-	for j := 0; j < rand.Intn(3); j++ {
+	for j := 0; j < rand.Intn(10); j++ {
 		for i := len(children) - 1; i >= 0; i-- {
 			ctx.SymbolStack.Push(children[i])
 		}
