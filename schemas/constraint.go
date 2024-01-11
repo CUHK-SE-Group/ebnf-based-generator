@@ -1,6 +1,7 @@
 package schemas
 
 import (
+	"fmt"
 	"github.com/CUHK-SE-Group/generic-generator/graph"
 	"regexp"
 )
@@ -49,6 +50,7 @@ func (c *ConstraintGraph) AddBinaryConstraint(cons Constraint) {
 	edge.SetFrom(from)
 	edge.SetTo(to)
 	edge.SetProperty(ConsProp, cons)
+	edge.SetID(fmt.Sprintf("%s->%s", from, to))
 	c.internal.AddEdge(edge)
 }
 

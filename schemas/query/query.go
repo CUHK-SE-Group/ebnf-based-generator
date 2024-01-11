@@ -6,6 +6,9 @@ func reversePattern(pattern []string) {
 	}
 }
 func MatchPattern(path []string, pattern string) bool {
+	if pattern == "" {
+		return false
+	}
 	p := Parse(pattern)
 	return matchPattern(path, p)
 }

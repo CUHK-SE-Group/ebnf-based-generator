@@ -36,10 +36,10 @@ func (q *Stack) Pop() *Stack {
 	}
 
 	if len(q.ProductionTrace) == 0 || lastSym == curSym.GetID() {
-		q.ProductionTrace = append(q.ProductionTrace, strings.Trim(curSym.GetID(), " "))
+		q.ProductionTrace = append(q.ProductionTrace, strings.TrimSpace(curSym.GetID()))
 	}
 	if lastSym != curSym.GetID() && !strings.HasPrefix(curSym.GetID(), lastSym) {
-		q.ProductionTrace = append(q.ProductionTrace, strings.Split(strings.Trim(curSym.GetID(), " "), "#")[0])
+		q.ProductionTrace = append(q.ProductionTrace, strings.Split(strings.TrimSpace(curSym.GetID()), "#")[0])
 	}
 	q.q = q.q[:len(q.q)-1]
 	return q
