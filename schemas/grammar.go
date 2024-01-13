@@ -115,8 +115,8 @@ type Derivation struct {
 }
 
 func (d *Derivation) getNodeID(id string) string {
-	return id
-	// return fmt.Sprintf("%s#%d", id, d.SymbolCnt[id])
+	//return id
+	return fmt.Sprintf("%s#%d", id, d.SymbolCnt[id])
 }
 
 func (d *Derivation) AddEdge(from, to *Node) {
@@ -488,7 +488,8 @@ func (g *Node) AddSymbol(new *Node) int {
 func getNumber(id string) int {
 	ids := strings.Split(id, "#")
 	if len(ids) != 2 {
-		panic("the id format should be xxx#yyy")
+		slog.Info("the id format should be xxx#yyy")
+		return 0
 	}
 	num1, err := strconv.Atoi(ids[1])
 	if err != nil {

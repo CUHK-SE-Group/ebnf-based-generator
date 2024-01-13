@@ -236,7 +236,7 @@ func (h *PlusHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
 		slog.Error("Pattern mismatched[Identifier]")
 		return
 	}
-	for j := 1; j < rand.Intn(10); j++ {
+	for j := 0; j < rand.Intn(10)+1; j++ {
 		for i := len(children) - 1; i >= 0; i-- {
 			ctx.SymbolStack.Push(children[i])
 		}

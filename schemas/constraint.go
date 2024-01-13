@@ -3,6 +3,7 @@ package schemas
 import (
 	"fmt"
 	"regexp"
+	"sort"
 
 	"github.com/CUHK-SE-Group/generic-generator/graph"
 )
@@ -62,6 +63,9 @@ func (c *ConstraintGraph) GetConstraints() []Constraint {
 	for _, v := range edges {
 		res = append(res, v.GetProperty(ConsProp))
 	}
+	sort.Slice(res, func(i, j int) bool {
+		return res[i].Weight > res[j].Weight
+	})
 	return res
 }
 

@@ -39,10 +39,8 @@ func (c *Chain) Next(ctx *Context, f ResponseCallBack) {
 
 		// 如果类型符合
 		if ctx.SymbolStack.Top().GetType()&c.Handlers[index].Type() != 0 && satisfy(ctx, c.Handlers[index]) {
-			ctx.HandlerIndex++
+			ctx.HandlerIndex = index + 1
 			c.Handlers[index].Handle(c, ctx, f)
-			r := NewResult(ctx)
-			f(r)
 			return
 		}
 	}
