@@ -3,9 +3,10 @@ package schemas
 import (
 	"errors"
 	"fmt"
-	"github.com/lucasjones/reggen"
 	"math/rand"
 	"strings"
+
+	"github.com/lucasjones/reggen"
 )
 
 var (
@@ -15,6 +16,7 @@ var (
 var (
 	ErrSymbolNotFound = errors.New("notfound")
 	ErrPassThrough    = errors.New("pass through the process")
+	ErrIntercept      = errors.New("intercept the handlers")
 )
 
 func trimNumber(id string) string {

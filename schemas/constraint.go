@@ -2,8 +2,9 @@ package schemas
 
 import (
 	"fmt"
-	"github.com/CUHK-SE-Group/generic-generator/graph"
 	"regexp"
+
+	"github.com/CUHK-SE-Group/generic-generator/graph"
 )
 
 type ConsAction int
@@ -34,6 +35,7 @@ type Constraint struct {
 	SecondNode     string
 	FirstOp        Action
 	SecondOp       Action
+	Weight         int
 }
 
 type ConstraintGraph struct {

@@ -3,8 +3,9 @@ package schemas
 import (
 	"context"
 	"errors"
-	"github.com/hashicorp/go-memdb"
 	"strings"
+
+	"github.com/hashicorp/go-memdb"
 )
 
 type Mode int
@@ -85,9 +86,10 @@ type Context struct {
 	finish       bool
 	Storage      *memdb.MemDB
 
-	VisitedEdge map[string]int
-	Mode        Mode
-	Constraint  *ConstraintGraph
+	VisitedEdge    map[string]int
+	Mode           Mode
+	Constraint     *ConstraintGraph
+	MemoryExchange map[string]int
 }
 
 type NodeRuntimeInfo struct {
@@ -145,6 +147,7 @@ func NewContext(grammarMap *Grammar, startSymbol string, ctx context.Context, co
 			EdgeHistory: make([]string, 0),
 			SymbolCnt:   make(map[string]int),
 		},
-		Constraint: cons,
+		Constraint:     cons,
+		MemoryExchange: map[string]int{},
 	}, nil
 }

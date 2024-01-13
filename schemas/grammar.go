@@ -3,14 +3,15 @@ package schemas
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/CUHK-SE-Group/generic-generator/graph"
-	A "github.com/IBM/fp-go/array"
-	"github.com/lucasjones/reggen"
 	"log/slog"
 	"math"
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/CUHK-SE-Group/generic-generator/graph"
+	A "github.com/IBM/fp-go/array"
+	"github.com/lucasjones/reggen"
 )
 
 type GrammarType int
@@ -114,7 +115,8 @@ type Derivation struct {
 }
 
 func (d *Derivation) getNodeID(id string) string {
-	return fmt.Sprintf("%s#%d", id, d.SymbolCnt[id])
+	return id
+	// return fmt.Sprintf("%s#%d", id, d.SymbolCnt[id])
 }
 
 func (d *Derivation) AddEdge(from, to *Node) {
