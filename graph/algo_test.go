@@ -71,15 +71,15 @@ func TestUpdateNodeProbability(t *testing.T) {
 	//identifyCyclesAndInitializeProbabilities(g, "vertex0")
 	//
 	//updateProbabilitiesUntilConvergence(g, 1000)
-	Visualize(g, "fig1.dot", nil)
+	Visualize(g, "fig1.dot", nil, nil)
 
 	ssc, newg := TarjanSCC(g)
-	Visualize(newg, "fig.dot", nil)
+	Visualize(newg, "fig.dot", nil, nil)
 	fmt.Println(ssc, newg)
 }
 func TestFloydAlgorithm(t *testing.T) {
 	g, _ := newGraph()
 	weight := FloydAlgorithm(g)
 	fmt.Println(weight)
-	Visualize(g, "fig.dot", nil)
+	Visualize(g, "fig.dot", nil, nil)
 }

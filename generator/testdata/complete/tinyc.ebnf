@@ -1,27 +1,27 @@
 program = statement;
 
-statement = ("if",[SP], paren_expr,[SP], statement)
-    | ("if",[SP], paren_expr,[SP], statement,[SP], "else",[SP], statement)
-    | ("while",[SP], paren_expr,[SP], statement)
-    | ("do",[SP], statement, "while", paren_expr, ";")
-    | ("{", { statement }, "}")
-    | (expr, ";")
-    | ";"
+statement = ('if',[SP], paren_expr,[SP], statement)
+    | ('if',[SP], paren_expr,[SP], statement,[SP], 'else',[SP], statement)
+    | ('while',[SP], paren_expr,[SP], statement)
+    | ('do',[SP], statement, 'while', paren_expr, ';')
+    | ('{', { statement }, '}')
+    | (expr, ';')
+    | ';'
     ;
 
-paren_expr = "(", expr, ")";
+paren_expr = '(', expr, ')';
 
 expr = test
-    | (id, "=", expr)
+    | (id, '=', expr)
     ;
 
 test = sum
-    |( sum, "<", sum)
+    |( sum, '<', sum)
     ;
 
-sum = term | (sum, "+", term) | (sum, "-", term);
+sum = term | (sum, '+', term) | (sum, '-', term);
 term = id | int | paren_expr;
-id = "a" | "b" | "c" | "d" | "e" | "z";
-int = "1" | "2" | "3" | "4";
+id = 'a' | 'b' | 'c' | 'd' | 'e' | 'z';
+int = '1' | '2' | '3' | '4';
 
 SP = ' ';

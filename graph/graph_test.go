@@ -78,7 +78,7 @@ func TestNewGraph(t *testing.T) {
 	validate(g)
 	newG := Clone(g, NewGraph[string, string], NewEdge[string, string], NewVertex[string])
 	validate(newG)
-	Visualize(g, "./file.dot", nil)
+	Visualize(g, "./file.dot", nil, nil)
 }
 
 type GraphTestCase[T1 any, T2 any] struct {
@@ -223,7 +223,7 @@ func TestGraph(t *testing.T) {
 			},
 		},
 		{
-			name: "Set and Get Metadata",
+			name: "Set and Get metadata",
 			setup: func(g Graph[string, string]) {
 				g.SetMetadata("sorted", true)
 			},

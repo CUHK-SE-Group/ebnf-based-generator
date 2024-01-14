@@ -116,8 +116,8 @@ func Clone[Ept any, Vpt any](graph Graph[Ept, Vpt], newGraph func() Graph[Ept, V
 	return clonedGraph
 }
 
-func Visualize[EdgePropertyType any, VertexPropertyType any](graph Graph[EdgePropertyType, VertexPropertyType], filename string, f func(vertex Vertex[VertexPropertyType]) string) error {
-	desc, err := generateDOT(graph, f)
+func Visualize[EdgePropertyType any, VertexPropertyType any](graph Graph[EdgePropertyType, VertexPropertyType], filename string, labelFunc func(vertex Vertex[VertexPropertyType]) string, parseID func(vertex Vertex[VertexPropertyType]) string) error {
+	desc, err := generateDOT(graph, labelFunc, parseID)
 	if err != nil {
 		return fmt.Errorf("failed to generate DOT description: %w", err)
 	}
@@ -142,7 +142,7 @@ type statement[PropertyType any] struct {
 }
 
 // design flaw: only vertex property can be shown
-func generateDOT[EdgePropertyType any, VertexPropertyType any](g Graph[EdgePropertyType, VertexPropertyType], f func(node Vertex[VertexPropertyType]) string) (description[VertexPropertyType], error) {
+func generateDOT[EdgePropertyType any, VertexPropertyType any](g Graph[EdgePropertyType, VertexPropertyType], f func(node Vertex[VertexPropertyType]) string, parseID func(node Vertex[VertexPropertyType]) string) (description[VertexPropertyType], error) {
 	desc := description[VertexPropertyType]{
 		GraphType:    "graph",
 		Attributes:   make(map[string]string),
@@ -154,13 +154,18 @@ func generateDOT[EdgePropertyType any, VertexPropertyType any](g Graph[EdgePrope
 			return node.GetID()
 		}
 	}
+	if parseID == nil {
+		parseID = func(node Vertex[VertexPropertyType]) string {
+			return node.GetID()
+		}
+	}
 
 	desc.GraphType = "digraph"
 	desc.EdgeOperator = "->"
 
 	for _, vertex := range g.GetAllVertices() {
 		stmt := statement[VertexPropertyType]{
-			Source:       vertex.GetID(),
+			Source:       parseID(vertex),
 			SourceWeight: 1,
 			VertexLabel:  f(vertex),
 		}
@@ -168,8 +173,8 @@ func generateDOT[EdgePropertyType any, VertexPropertyType any](g Graph[EdgePrope
 
 		for _, edge := range g.GetOutEdges(vertex) {
 			stmt1 := statement[VertexPropertyType]{
-				Source:     vertex.GetID(),
-				Target:     edge.GetTo().GetID(),
+				Source:     parseID(vertex),
+				Target:     parseID(edge.GetTo()),
 				EdgeWeight: 1,
 				//EdgeLabel:  f(edge),
 			}

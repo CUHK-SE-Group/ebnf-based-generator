@@ -10,7 +10,6 @@ import (
 	"github.com/CUHK-SE-Group/generic-generator/schemas"
 	"github.com/CUHK-SE-Group/generic-generator/schemas/query"
 	"log"
-	"log/slog"
 	"math"
 	"math/rand"
 	"os"
@@ -18,7 +17,6 @@ import (
 	"regexp"
 	"runtime"
 	"runtime/pprof"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -156,7 +154,7 @@ func TestDefaultHandler(t *testing.T) {
 		chain.Next(ctx, func(result *schemas.Result) {
 			ctx = result.GetCtx()
 			ctx.HandlerIndex = 0
-			fmt.Println(ctx.Result)
+			fmt.Println(ctx.Result.GetResult(nil))
 		})
 	}
 }
@@ -189,7 +187,7 @@ func TestWeightedHandler(t *testing.T) {
 	}
 	fmt.Println(ctx.Result.GetResult(nil))
 	fmt.Printf("edge coverage: %d/%d\n", len(ctx.VisitedEdge), len(ctx.Grammar.GetInternal().GetAllEdges()))
-	err = graph.Visualize(ctx.Result.Grammar.GetInternal(), "fig.dot", nil)
+	err = graph.Visualize(ctx.Result.Grammar.GetInternal(), "fig.dot", nil, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -199,6 +197,16 @@ func TestWeightedHandler(t *testing.T) {
 	defer cancel() // 确保所有路径上都调用了cancel
 
 	input := ctx.Result.GetResult(nil)
+	graph.Visualize(ctx.Result.GetInternal(), "result.dot", nil, func(v graph.Vertex[schemas.Property]) string {
+		sp := strings.Split(v.GetID(), "#")
+		if len(sp) == 3 {
+			return strings.Join(sp[:2], "#")
+		}
+		if len(sp) == 2 {
+			return strings.Join(sp[:1], "#")
+		}
+		panic("wrong encoding")
+	})
 	cmd := exec.CommandContext(ctxtime, "./tinyc")
 	var in bytes.Buffer
 	in.Write([]byte(input))
@@ -323,165 +331,4 @@ func TestLLVMIRHandler(t *testing.T) {
 		})
 	}
 	fmt.Printf("%s\n", ctx.Result.GetResult(nil))
-}
-
-type EBPFTermHandler struct {
-}
-
-func (h *EBPFTermHandler) isTermPreserve(g *schemas.Node) bool {
-	content := g.GetContent()
-	return (content[0] == content[len(content)-1]) && ((content[0] == '\'') || content[0] == '"')
-}
-
-func (h *EBPFTermHandler) stripQuote(content string) string {
-	if content[0] == content[len(content)-1] {
-		if (content[0] == '\'') || (content[0] == '"') {
-			return content[1 : len(content)-1]
-		}
-	}
-	return content
-}
-func GenerateRandomBinaryString(bitLength int) (string, error) {
-	if bitLength <= 0 {
-		return "", fmt.Errorf("bit length must be positive")
-	}
-
-	// 生成随机数
-	max := int64(1<<bitLength - 1)
-	randomNumber := rand.Int63n(max)
-
-	// 将随机数转换为二进制字符串
-	binaryString := strconv.FormatInt(randomNumber, 2)
-
-	// 如果不足指定位数，则用0填充
-	formattedString := fmt.Sprintf("%0*s", bitLength, binaryString)
-
-	return formattedString, nil
-}
-
-func BinaryToHex(binaryString string) (string, error) {
-	if len(binaryString) != 64 {
-		return "", fmt.Errorf("binary string must be 64 bits long, current length: %d", len(binaryString))
-	}
-
-	var hexString string
-	for i := 0; i < 64; i += 4 {
-		segment := binaryString[i : i+4]
-		hexDigit, err := strconv.ParseUint(segment, 2, 4)
-		if err != nil {
-			return "", fmt.Errorf("error parsing binary segment: %s", err)
-		}
-		hexString += fmt.Sprintf("%X", hexDigit)
-	}
-
-	return hexString, nil
-}
-
-func (h *EBPFTermHandler) Handle(chain *schemas.Chain, ctx *schemas.Context, cb schemas.ResponseCallBack) {
-	cur := ctx.SymbolStack.Top()
-	ctx.SymbolStack.Pop()
-	if len(cur.GetSymbols()) != 0 {
-		slog.Error("Pattern mismatched[Terminal]")
-		return
-	}
-	fmt.Println(cur.GetID(), cur.GetContent())
-	if cur.GetID() == "offset#0" {
-		bits, err := GenerateRandomBinaryString(16)
-		if err != nil {
-			panic(err)
-		}
-		cur.SetContent(bits)
-	} else if cur.GetID() == "imm#0" {
-		bits, err := GenerateRandomBinaryString(32)
-		if err != nil {
-			panic(err)
-		}
-		cur.SetContent(bits)
-	}
-	ctx.Result.AddEdge(cur, cur) // 用一个自环标记到达了最后的终结符节点
-	chain.Next(ctx, cb)
-}
-
-func (h *EBPFTermHandler) HookRoute() []regexp.Regexp {
-	return make([]regexp.Regexp, 0)
-}
-
-func (h *EBPFTermHandler) Name() string {
-	return "ebpfterminalhandler"
-}
-
-func (h *EBPFTermHandler) Type() schemas.GrammarType {
-	return schemas.GrammarTerminal
-}
-func BinaryStringToUint64(binaryString string) (uint64, error) {
-	if len(binaryString) != 64 {
-		return 0, fmt.Errorf("binary string must be 64 bits long")
-	}
-
-	value, err := strconv.ParseUint(binaryString, 2, 64)
-	if err != nil {
-		return 0, fmt.Errorf("error parsing binary string: %s", err)
-	}
-
-	return value, nil
-}
-func hexToBinaryString(hexStr string, bits int) (string, error) {
-	// 将十六进制字符串转换为整数
-	hexNum, err := strconv.ParseInt(hexStr, 0, 64)
-	if err != nil {
-		return "", err
-	}
-
-	// 格式化为二进制字符串
-	formatString := fmt.Sprintf("%%0%db", bits)
-	return fmt.Sprintf(formatString, hexNum), nil
-}
-
-func TestEBPFHandler(t *testing.T) {
-	g, err := parser.Parse("./testdata/complete/ebpf.ebnf", "controlFlowGraph")
-	if err != nil {
-		panic(err)
-	}
-	g.MergeProduction()
-	g.BuildShortestNotation()
-	chain, err := schemas.CreateChain("test", &MonitorHandler{}, &schemas.PlusHandler{}, &schemas.CatHandler{}, &schemas.IDHandler{}, &EBPFTermHandler{}, &WeightedHandler{}, &schemas.OrHandler{}, &schemas.RepHandler{}, &schemas.BracketHandler{})
-	if err != nil {
-		panic(err)
-	}
-	ctx, err := schemas.NewContext(g, "controlFlowGraph", context.Background(), nil, nil)
-	if err != nil {
-		panic(err)
-	}
-	for !ctx.GetFinish() {
-		chain.Next(ctx, func(result *schemas.Result) {
-			ctx = result.GetCtx()
-			ctx.HandlerIndex = 0
-		})
-	}
-	res := ctx.Result.GetResult(func(content string) string {
-		if strings.HasPrefix(content, "0x") {
-			sp := strings.Split(content, ":")
-			if len(sp) != 2 {
-				panic(fmt.Errorf("the length should be 2, %s\n", content))
-			}
-			bits, err := strconv.Atoi(sp[1])
-			if err != nil {
-				panic(err)
-			}
-			content, err = hexToBinaryString(sp[0], bits)
-			if err != nil {
-				panic(err)
-			}
-		}
-		return content
-	})
-	codes := strings.Split(res, "\\n")
-	for _, code := range codes {
-		instruction, err := BinaryStringToUint64(code)
-		if err != nil {
-			panic(err)
-		}
-		fmt.Println(instruction)
-	}
-	//fmt.Printf("%v, length: %v", res, len(res))
 }

@@ -1194,7 +1194,7 @@ func (p *EBNFParser) factor(_p int) (localctx IFactorContext) {
 	_parentState := p.GetState()
 	localctx = NewFactorContext(p, p.GetParserRuleContext(), _parentState)
 	var _prevctx IFactorContext = localctx
-	var _ antlr.ParserRuleContext = _prevctx // TODO: To prevent unused variable warning.
+	var _ antlr.ParserRuleContext = _prevctx // TODO: to prevent unused variable warning.
 	_startState := 8
 	p.EnterRecursionRule(localctx, 8, EBNFParserRULE_factor, _p)
 	var _alt int
