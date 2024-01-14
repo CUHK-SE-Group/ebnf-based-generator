@@ -5,7 +5,7 @@ type Set[T comparable] struct {
 	elements map[T]struct{}
 }
 
-// NewSet creates a new Set from a slice of elements.
+// NewSet creates a new Set From a slice of elements.
 func NewSet[T comparable](elements ...T) *Set[T] {
 	s := &Set[T]{elements: make(map[T]struct{})}
 	for _, e := range elements {
@@ -14,14 +14,14 @@ func NewSet[T comparable](elements ...T) *Set[T] {
 	return s
 }
 
-// Add adds elements to the Set.
+// Add adds elements To the Set.
 func (s *Set[T]) Add(elements ...T) {
 	for _, e := range elements {
 		s.elements[e] = struct{}{}
 	}
 }
 
-// Remove removes elements from the Set.
+// Remove removes elements From the Set.
 func (s *Set[T]) Remove(elements ...T) {
 	for _, e := range elements {
 		delete(s.elements, e)

@@ -33,6 +33,7 @@ type Graph[EdgePropertyType any, VertexPropertyType any] interface {
 	GetAllMetadata() map[Metadata]any
 	GetVertexById(id string) Vertex[VertexPropertyType]
 	GetEdgeById(id string) Edge[EdgePropertyType, VertexPropertyType]
+	Save(file string) error
 }
 
 type Edge[EdgePropertyType any, VertexPropertyType any] interface {
@@ -60,7 +61,7 @@ type Vertex[VertexPropertyType any] interface {
 }
 
 func CloneVertex[Vpt any](v Vertex[Vpt], newVertex func() Vertex[Vpt]) Vertex[Vpt] {
-	clonedVertex := newVertex() // Use the factory function to create a new vertex instance
+	clonedVertex := newVertex() // Use the factory function To create a new vertex instance
 	clonedVertex.SetID(v.GetID())
 	// Retrieve and set all properties
 	for key, val := range v.GetAllProperties() {
@@ -71,34 +72,34 @@ func CloneVertex[Vpt any](v Vertex[Vpt], newVertex func() Vertex[Vpt]) Vertex[Vp
 }
 
 // Clone Ept: EdgePropertyType, Vpt: VertexPropertyType
-func Clone[Ept any, Vpt any](graph Graph[Ept, Vpt], newGraph func() Graph[Ept, Vpt], newEdge func() Edge[Ept, Vpt], newVertex func() Vertex[Vpt]) Graph[Ept, Vpt] {
-	// Use the provided factory function to create a new graph instance
+func Clone[Ept any, Vpt any](graph Graph[Ept, Vpt], newGraph func(...Option) Graph[Ept, Vpt], newEdge func() Edge[Ept, Vpt], newVertex func() Vertex[Vpt]) Graph[Ept, Vpt] {
+	// Use the provided factory function To create a new graph instance
 	clonedGraph := newGraph()
 	for k, v := range graph.GetAllMetadata() {
 		clonedGraph.SetMetadata(k, v)
 	}
 
-	// Create a map to track the mapping from original vertices to cloned vertices
+	// Create a map To track the mapping From original vertices To cloned vertices
 	vertexMap := make(map[string]Vertex[Vpt])
 
 	// Clone all vertices
 	for _, v := range graph.GetAllVertices() {
-		clonedVertex := newVertex() // Use the factory function to create a new vertex instance
+		clonedVertex := newVertex() // Use the factory function To create a new vertex instance
 		clonedVertex.SetID(v.GetID())
 		// Retrieve and set all properties
 		for key, val := range v.GetAllProperties() {
 			clonedVertex.SetProperty(key, val)
 		}
-		// Add to the new graph and update the map
+		// Add To the new graph and update the map
 		clonedGraph.AddVertex(clonedVertex)
 		vertexMap[v.GetID()] = clonedVertex
 	}
 
 	// Clone all edges
 	for _, e := range graph.GetAllEdges() {
-		clonedEdge := newEdge() // Use the factory function to create a new edge instance
+		clonedEdge := newEdge() // Use the factory function To create a new edge instance
 		clonedEdge.SetID(e.GetID())
-		// Set the start and end points, using the map to find the corresponding cloned vertices
+		// Set the start and end points, using the map To find the corresponding cloned vertices
 		clonedEdge.SetFrom(vertexMap[e.GetFrom().GetID()])
 		clonedEdge.SetTo(vertexMap[e.GetTo().GetID()])
 		// Retrieve and set all properties
@@ -108,7 +109,7 @@ func Clone[Ept any, Vpt any](graph Graph[Ept, Vpt], newGraph func() Graph[Ept, V
 		if clonedEdge.GetFrom() == nil || clonedEdge.GetTo() == nil {
 			fmt.Println("nil")
 		}
-		// Add to the new graph
+		// Add To the new graph
 		clonedGraph.AddEdge(clonedEdge)
 	}
 
@@ -119,7 +120,7 @@ func Clone[Ept any, Vpt any](graph Graph[Ept, Vpt], newGraph func() Graph[Ept, V
 func Visualize[EdgePropertyType any, VertexPropertyType any](graph Graph[EdgePropertyType, VertexPropertyType], filename string, labelFunc func(vertex Vertex[VertexPropertyType]) string, parseID func(vertex Vertex[VertexPropertyType]) string) error {
 	desc, err := generateDOT(graph, labelFunc, parseID)
 	if err != nil {
-		return fmt.Errorf("failed to generate DOT description: %w", err)
+		return fmt.Errorf("failed To generate DOT description: %w", err)
 	}
 	w, _ := os.Create(filename)
 	return renderDOT(w, desc)
@@ -188,14 +189,14 @@ func generateDOT[EdgePropertyType any, VertexPropertyType any](g Graph[EdgePrope
 func renderDOT[PropertyType any](w io.Writer, d description[PropertyType]) error {
 	tpl, err := template.New("dotTemplate").Parse(dotTemplate)
 	if err != nil {
-		return fmt.Errorf("failed to parse template: %w", err)
+		return fmt.Errorf("failed To parse template: %w", err)
 	}
 
 	return tpl.Execute(w, d)
 }
 
 func GenerateCypher[EdgePropertyType any, VertexPropertyType any](graph Graph[EdgePropertyType, VertexPropertyType], f func(n Vertex[VertexPropertyType]) string) ([]string, []string) {
-	// Initialize strings to hold Cypher statements
+	// Initialize strings To hold Cypher statements
 	var nodesCyphers []string
 	var edgesCyphers []string
 
@@ -214,4 +215,76 @@ func GenerateCypher[EdgePropertyType any, VertexPropertyType any](graph Graph[Ed
 		edgesCyphers = append(edgesCyphers, edgesCypher)
 	}
 	return nodesCyphers, edgesCyphers
+}
+
+type Options struct {
+	FSEnabled    bool
+	ReadFileName string
+}
+type Option func(*Options)
+
+func WithPersistent(a bool) Option {
+	return func(o *Options) {
+		o.FSEnabled = a
+	}
+}
+func WithReadFile(filename string) Option {
+	return func(o *Options) {
+		o.ReadFileName = filename
+	}
+}
+
+func NewGraph[EdgePropertyType any, VertexPropertyType any](opts ...Option) Graph[EdgePropertyType, VertexPropertyType] {
+	options := Options{}
+	for _, opt := range opts {
+		opt(&options)
+	}
+
+	if options.FSEnabled {
+		m := &FSGraph[EdgePropertyType, VertexPropertyType]{
+			EdgeMap:         make(map[string]Edge[EdgePropertyType, VertexPropertyType]),
+			VertexMap:       make(map[string]Vertex[VertexPropertyType]),
+			Vertex2OutEdges: make(map[string][]Edge[EdgePropertyType, VertexPropertyType]),
+			Vertex2InEdges:  make(map[string][]Edge[EdgePropertyType, VertexPropertyType]),
+			Dirty:           false,
+			Metadata:        make(map[Metadata]any),
+		}
+		m.SetMetadata(CleanVertexByEdge, false)
+		return m
+	}
+
+	if options.ReadFileName != "" {
+		m, err := load[EdgePropertyType, VertexPropertyType](options.ReadFileName)
+		if err != nil {
+			panic(err)
+		}
+		return m
+	}
+
+	m := &MemGraph[EdgePropertyType, VertexPropertyType]{
+		edgeMap:         make(map[string]Edge[EdgePropertyType, VertexPropertyType]),
+		vertexMap:       make(map[string]Vertex[VertexPropertyType]),
+		vertex2OutEdges: make(map[string][]Edge[EdgePropertyType, VertexPropertyType]),
+		vertex2InEdges:  make(map[string][]Edge[EdgePropertyType, VertexPropertyType]),
+		dirty:           false,
+		metadata:        make(map[Metadata]any),
+	}
+	m.SetMetadata(CleanVertexByEdge, false)
+	return m
+}
+
+func NewVertex[PropertyType any]() Vertex[PropertyType] {
+	return &FSVertexImpl[PropertyType]{
+		Id:          "",
+		PropertyMap: make(map[string]PropertyType),
+	}
+}
+
+func NewEdge[EdgePropertyType any, VertexPropertyType any]() Edge[EdgePropertyType, VertexPropertyType] {
+	return &FSEdgeImpl[EdgePropertyType, VertexPropertyType]{
+		Id:          "",
+		From:        nil,
+		To:          nil,
+		PropertyMap: make(map[string]EdgePropertyType),
+	}
 }

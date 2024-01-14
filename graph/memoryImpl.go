@@ -6,6 +6,7 @@ import (
 
 const (
 	CleanVertexByEdge Metadata = "cleanVertexWhenNoEdge"
+	GraphFile         Metadata = "graphFile"
 )
 
 type MemGraph[EdgePropertyType any, VertexPropertyType any] struct {
@@ -31,35 +32,6 @@ type EdgeImpl[EdgePropertyType any, VertexPropertyType any] struct {
 	to          Vertex[VertexPropertyType]
 	propertyMap map[string]EdgePropertyType
 	meta        any
-}
-
-func NewGraph[EdgePropertyType any, VertexPropertyType any]() Graph[EdgePropertyType, VertexPropertyType] {
-	m := &MemGraph[EdgePropertyType, VertexPropertyType]{
-		edgeMap:         make(map[string]Edge[EdgePropertyType, VertexPropertyType]),
-		vertexMap:       make(map[string]Vertex[VertexPropertyType]),
-		vertex2OutEdges: make(map[string][]Edge[EdgePropertyType, VertexPropertyType]),
-		vertex2InEdges:  make(map[string][]Edge[EdgePropertyType, VertexPropertyType]),
-		dirty:           false,
-		metadata:        make(map[Metadata]any),
-	}
-	m.SetMetadata(CleanVertexByEdge, false)
-	return m
-}
-
-func NewVertex[PropertyType any]() Vertex[PropertyType] {
-	return &VertexImpl[PropertyType]{
-		id:          "",
-		propertyMap: make(map[string]PropertyType),
-	}
-}
-
-func NewEdge[EdgePropertyType any, VertexPropertyType any]() Edge[EdgePropertyType, VertexPropertyType] {
-	return &EdgeImpl[EdgePropertyType, VertexPropertyType]{
-		id:          "",
-		from:        nil,
-		to:          nil,
-		propertyMap: make(map[string]EdgePropertyType),
-	}
 }
 
 func (g *MemGraph[EdgePropertyType, VertexPropertyType]) updateIndex() {
@@ -117,7 +89,7 @@ func (g *MemGraph[EdgePropertyType, VertexPropertyType]) GetEdgeById(id string) 
 }
 func (g *MemGraph[EdgePropertyType, VertexPropertyType]) AddEdge(edge Edge[EdgePropertyType, VertexPropertyType]) {
 	if _, ok := g.edgeMap[edge.GetID()]; ok {
-		slog.Debug("edge already exists", "id", edge.GetID(), "from", edge.GetFrom().GetID(), "to", edge.GetTo().GetID())
+		slog.Debug("edge already exists", "Id", edge.GetID(), "From", edge.GetFrom().GetID(), "To", edge.GetTo().GetID())
 	}
 	g.edgeMap[edge.GetID()] = edge
 	if _, ok := g.vertexMap[edge.GetFrom().GetID()]; !ok {
@@ -131,7 +103,7 @@ func (g *MemGraph[EdgePropertyType, VertexPropertyType]) AddEdge(edge Edge[EdgeP
 
 func (g *MemGraph[EdgePropertyType, VertexPropertyType]) AddVertex(vertex Vertex[VertexPropertyType]) {
 	if _, ok := g.vertexMap[vertex.GetID()]; ok {
-		slog.Warn("vertex already exists", "id", vertex.GetID())
+		slog.Warn("vertex already exists", "Id", vertex.GetID())
 	}
 	g.vertexMap[vertex.GetID()] = vertex
 	g.dirty = true
@@ -141,7 +113,7 @@ func (g *MemGraph[EdgePropertyType, VertexPropertyType]) DeleteEdge(edge Edge[Ed
 	if _, ok := g.edgeMap[edge.GetID()]; ok {
 		delete(g.edgeMap, edge.GetID())
 	}
-	slog.Warn("edge does not exist", "id", edge.GetID())
+	slog.Warn("edge does not exist", "Id", edge.GetID())
 	g.dirty = true
 }
 
@@ -149,7 +121,7 @@ func (g *MemGraph[EdgePropertyType, VertexPropertyType]) DeleteVertex(vertex Ver
 	if _, ok := g.vertexMap[vertex.GetID()]; ok {
 		delete(g.vertexMap, vertex.GetID())
 	}
-	slog.Warn("vertex does not exist", "id", vertex.GetID())
+	slog.Warn("vertex does not exist", "Id", vertex.GetID())
 	g.dirty = true
 }
 
@@ -179,6 +151,13 @@ func (g *MemGraph[EdgePropertyType, VertexPropertyType]) GetAllEdges() []Edge[Ed
 		all = append(all, e)
 	}
 	return all
+}
+
+func (g *MemGraph[EdgePropertyType, VertexPropertyType]) Save(file string) error {
+	panic("unimplemented")
+}
+func (g *MemGraph[EdgePropertyType, VertexPropertyType]) Load(file string) error {
+	panic("unimplemented")
 }
 
 func (n *VertexImpl[PropertyType]) SetID(id string) {

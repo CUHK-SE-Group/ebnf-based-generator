@@ -1,8 +1,10 @@
 package graph
 
 import (
+	"encoding/gob"
 	"fmt"
 	"math/rand"
+	"reflect"
 	"sort"
 	"testing"
 )
@@ -184,7 +186,7 @@ func TestGraph(t *testing.T) {
 				v := g.GetVertexById("v1")
 				color := v.GetProperty("color")
 				if color != "blue" {
-					t.Errorf("expected vertex property color to be 'blue', got '%s'", color)
+					t.Errorf("expected vertex property color To be 'blue', got '%s'", color)
 				}
 			},
 			expected: func(g Graph[string, string]) bool {
@@ -213,7 +215,7 @@ func TestGraph(t *testing.T) {
 				e := g.GetEdgeById("e1")
 				weight := e.GetProperty("weight")
 				if weight != "10" {
-					t.Errorf("expected edge property weight to be '10', got '%s'", weight)
+					t.Errorf("expected edge property weight To be '10', got '%s'", weight)
 				}
 			},
 			expected: func(g Graph[string, string]) bool {
@@ -223,14 +225,14 @@ func TestGraph(t *testing.T) {
 			},
 		},
 		{
-			name: "Set and Get metadata",
+			name: "Set and Get Metadata",
 			setup: func(g Graph[string, string]) {
 				g.SetMetadata("sorted", true)
 			},
 			test: func(g Graph[string, string]) {
 				sorted := g.GetMetadata("sorted").(bool)
 				if !sorted {
-					t.Errorf("expected metadata sorted to be true, got false")
+					t.Errorf("expected Metadata sorted To be true, got false")
 				}
 			},
 			expected: func(g Graph[string, string]) bool {
@@ -279,5 +281,38 @@ func TestGraph(t *testing.T) {
 				t.Errorf("test %s failed", tc.name)
 			}
 		})
+	}
+}
+
+func TestFSDump(t *testing.T) {
+	gob.Register(&FSGraph[int, int]{})
+	gob.Register(&FSVertexImpl[int]{})
+	gob.Register(&FSEdgeImpl[int, int]{})
+
+	graph := NewGraph[int, int](WithPersistent(true))
+	v1 := NewVertex[int]()
+	v1.SetID("v1")
+
+	v2 := NewVertex[int]()
+	v2.SetID("v2")
+
+	e1 := NewEdge[int, int]()
+	e1.SetID("e1")
+	e1.SetFrom(v1)
+	e1.SetTo(v2)
+
+	graph.AddEdge(e1)
+
+	err := graph.Save("/tmp/graph")
+	if err != nil {
+		t.Error(err)
+	}
+
+	newG, err := load[int, int]("/tmp/graph")
+	if err != nil {
+		t.Error(err)
+	}
+	if !reflect.DeepEqual(graph, newG) {
+		t.Errorf("反序列化后的图与原始图不相同")
 	}
 }

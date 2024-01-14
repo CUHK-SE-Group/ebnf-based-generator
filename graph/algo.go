@@ -18,7 +18,7 @@ func TarjanSCC[EdgePropertyType any, VertexPropertyType any](graph Graph[EdgePro
 		inStack  = make(map[string]bool)
 		indices  = make(map[string]int)
 		lowLinks = make(map[string]int)
-		sccMap   = make(map[string]string) // Map from original vertex ID to SCC representative ID
+		sccMap   = make(map[string]string) // Map From original vertex ID To SCC representative ID
 	)
 
 	var strongconnect func(v *VertexImpl[VertexPropertyType])
