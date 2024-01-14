@@ -63,12 +63,14 @@ func (h *WeightedHandler) Handle(chain *schemas.Chain, ctx *schemas.Context, cb 
 		//} else {
 		ctx.VisitedEdge[schemas.GetEdgeID(cur.GetID(), sym[candidates[idx]].GetID())]++
 		ctx.SymbolStack.Push(sym[candidates[idx]])
+		ctx.Result.AddNode(sym[candidates[idx]])
 		ctx.Result.AddEdge(cur, sym[candidates[idx]])
 		//}
 	default:
 		idx := rand.Int() % len(cur.GetSymbols())
 		ctx.SymbolStack.Push((cur.GetSymbols())[idx])
 		ctx.VisitedEdge[schemas.GetEdgeID(cur.GetID(), (cur.GetSymbols())[idx].GetID())]++
+		ctx.Result.AddNode((cur.GetSymbols())[idx])
 		ctx.Result.AddEdge(cur, (cur.GetSymbols())[idx])
 	}
 

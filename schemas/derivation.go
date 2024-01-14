@@ -17,6 +17,16 @@ func (d *Derivation) getNodeID(id string) string {
 	return fmt.Sprintf("%s#%d", id, d.SymbolCnt[id])
 }
 
+// AddNode convention: When adding a Edge, by AddEdge, we first add Node to the graph
+func (d *Derivation) AddNode(node *Node) {
+	if d.internal.GetVertexById(d.getNodeID(node.GetID())) != nil { // already exists
+		d.SymbolCnt[node.GetID()]++
+	}
+	newnode := node.Clone(d.Grammar)
+	newnode.SetID(d.getNodeID(node.GetID()))
+}
+
+// AddEdge convention: When adding a Edge, by AddEdge, we first AddNode to the graph
 func (d *Derivation) AddEdge(from, to *Node) {
 	newfrom := from.Clone(d.Grammar)
 	newto := to.Clone(d.Grammar)
@@ -26,8 +36,6 @@ func (d *Derivation) AddEdge(from, to *Node) {
 
 	newfrom.AddSymbol(newto)
 	d.EdgeHistory = append(d.EdgeHistory, GetEdgeID(newfrom.GetID(), newto.GetID()))
-	d.SymbolCnt[from.GetID()]++ // denote the `from` node to a new node
-
 }
 func isTermPreserve(content string) bool {
 	return (content[0] == content[len(content)-1]) && ((content[0] == '\'') || content[0] == '"')

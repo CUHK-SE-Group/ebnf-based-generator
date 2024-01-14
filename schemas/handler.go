@@ -44,6 +44,7 @@ func (h *CatHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
 		ctx.SymbolStack.Push((cur.GetSymbols())[i])
 	}
 	for i := 0; i < len(cur.GetSymbols()); i++ {
+		ctx.Result.AddNode((cur.GetSymbols())[i])
 		ctx.Result.AddEdge(cur, (cur.GetSymbols())[i])
 	}
 	chain.Next(ctx, cb)
@@ -74,6 +75,8 @@ func (h *OrHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
 	ctx.SymbolStack.Pop()
 	idx := rand.Int() % len(cur.GetSymbols())
 	ctx.SymbolStack.Push((cur.GetSymbols())[idx])
+
+	ctx.Result.AddNode((cur.GetSymbols())[idx])
 	ctx.Result.AddEdge(cur, (cur.GetSymbols())[idx])
 	ctx.VisitedEdge[GetEdgeID(cur.GetID(), (cur.GetSymbols())[idx].GetID())]++
 	chain.Next(ctx, cb)
@@ -104,6 +107,7 @@ func (h *IDHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
 		slog.Error("The identifier does not Existed", "id", cur.GetContent())
 		return // omit error
 	}
+	ctx.Result.AddNode(node)
 	ctx.Result.AddEdge(cur, node)
 	ctx.SymbolStack.Push(node)
 	chain.Next(ctx, cb)
@@ -131,6 +135,7 @@ func (r *RepHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
 	if rand.Intn(10) > 8 {
 		ctx.SymbolStack.Push(cur.GetSymbols()...)
 		for _, node := range cur.GetSymbols() {
+			ctx.Result.AddNode(node)
 			ctx.Result.AddEdge(cur, node)
 		}
 	}
@@ -207,6 +212,7 @@ func (h *BracketHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack)
 			ctx.SymbolStack.Push(children[i])
 		}
 		for i := 0; i < len(children); i++ {
+			ctx.Result.AddNode(children[i])
 			ctx.Result.AddEdge(cur, children[i])
 		}
 	}
@@ -241,6 +247,7 @@ func (h *PlusHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
 			ctx.SymbolStack.Push(children[i])
 		}
 		for i := 0; i < len(children); i++ {
+			ctx.Result.AddNode(children[i])
 			ctx.Result.AddEdge(cur, children[i])
 		}
 	}
