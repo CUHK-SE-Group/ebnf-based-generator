@@ -26,7 +26,7 @@ func (d *Derivation) AddEdge(from, to *Node) {
 
 	newfrom.AddSymbol(newto)
 	d.EdgeHistory = append(d.EdgeHistory, GetEdgeID(newfrom.GetID(), newto.GetID()))
-	d.SymbolCnt[to.GetID()]++ // denote the `to` node to a new node
+	d.SymbolCnt[from.GetID()]++ // denote the `from` node to a new node
 
 }
 func isTermPreserve(content string) bool {

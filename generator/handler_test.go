@@ -17,7 +17,6 @@ import (
 	"regexp"
 	"runtime"
 	"runtime/pprof"
-	"strings"
 	"testing"
 	"time"
 )
@@ -197,16 +196,6 @@ func TestWeightedHandler(t *testing.T) {
 	defer cancel() // 确保所有路径上都调用了cancel
 
 	input := ctx.Result.GetResult(nil)
-	graph.Visualize(ctx.Result.GetInternal(), "result.dot", nil, func(v graph.Vertex[schemas.Property]) string {
-		sp := strings.Split(v.GetID(), "#")
-		if len(sp) == 3 {
-			return strings.Join(sp[:2], "#")
-		}
-		if len(sp) == 2 {
-			return strings.Join(sp[:1], "#")
-		}
-		panic("wrong encoding")
-	})
 	cmd := exec.CommandContext(ctxtime, "./tinyc")
 	var in bytes.Buffer
 	in.Write([]byte(input))
