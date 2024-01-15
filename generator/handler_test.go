@@ -207,6 +207,7 @@ func TestWeightedHandler(t *testing.T) {
 	defer cancel() // 确保所有路径上都调用了cancel
 
 	input := ctx.Result.GetResult(nil)
+
 	cmd := exec.CommandContext(ctxtime, "./tinyc")
 	var in bytes.Buffer
 	in.Write([]byte(input))

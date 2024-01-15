@@ -1,10 +1,8 @@
 package schemas
 
 import (
-	"encoding/json"
 	"fmt"
 	"log/slog"
-	"math"
 	"sort"
 	"strconv"
 	"strings"
@@ -34,6 +32,7 @@ const (
 	Index    = "index"
 	Visited  = "visited_"
 	Distance = "distance"
+	StartSym = "startSym"
 )
 
 var typeStrRep = map[GrammarType]string{
@@ -61,66 +60,36 @@ type Property struct {
 	Content            string
 	DistanceToTerminal int
 }
-type TrieTree struct {
-	Root  *TrieNode
-	Index map[string]*TrieNode
-}
-type TrieNode struct {
-	Children map[string]*TrieNode `json:"children"`
-	IsEnd    bool                 `json:"-"`
-	Node     *Node
+
+type Options struct {
+	StartSym string
 }
 
-func (t *TrieNode) ToJSON() (string, error) {
-	type Alias TrieNode
+type Option func(*Options)
 
-	data := make(map[string]interface{})
-	for key, child := range t.Children {
-		childJSON, err := child.ToJSON()
-		if err != nil {
-			return "", err
-		}
-		data[key] = json.RawMessage(childJSON)
+func WithStartSym(startSym string) Option {
+	return func(o *Options) {
+		o.StartSym = startSym
 	}
-
-	jsonData, err := json.MarshalIndent(data, "", "\t")
-	if err != nil {
-		return "", err
-	}
-
-	return string(jsonData), nil
-}
-
-func NewTrieNode(node *Node) *TrieNode {
-	return &TrieNode{Children: make(map[string]*TrieNode), Node: node}
-}
-
-func (t *TrieNode) Insert(n *Node, path []string, index *map[string]*TrieNode) {
-	node := t
-	for _, element := range path {
-		if _, ok := node.Children[element]; !ok {
-			node.Children[element] = NewTrieNode(n)
-			(*index)[element] = node.Children[element]
-		}
-		node = node.Children[element]
-	}
-	node.IsEnd = true
 }
 
 type Grammar struct {
-	internal  graph.Graph[string, Property]
-	startSym  string
-	terminals []string // cache
+	internal graph.Graph[string, Property]
+	//startSym  string
+	//terminals []string // cache
 }
 
-func NewGrammar(start ...string) *Grammar {
-	var st string
-	if len(start) != 0 {
-		st = start[0]
+func NewGrammar(opts ...Option) *Grammar {
+	options := Options{}
+	for _, opt := range opts {
+		opt(&options)
 	}
+
 	newG := &Grammar{
 		internal: graph.NewGraph[string, Property](),
-		startSym: st,
+	}
+	if options.StartSym != "" {
+		newG.internal.SetMetadata(StartSym, options.StartSym)
 	}
 	return newG
 }
@@ -141,7 +110,7 @@ func (g *Grammar) GetEdge(id string) (*Node, *Node) {
 }
 
 func (p *Grammar) MergeProduction() {
-	start := p.startSym
+	start := p.internal.GetMetadata(StartSym).(string)
 	queue := []*Node{p.GetNode(start)}
 	visited := make(map[string]any)
 	productions := []*Node{p.GetNode(start)}
@@ -165,109 +134,28 @@ func (p *Grammar) MergeProduction() {
 }
 
 // QueryDistance query for the largest and minimum distance to the terminal
-func (g *Grammar) QueryDistance(id string) (float64, float64) {
-	if g.internal.GetMetadata(Distance) == nil {
-		//tmpG := graph.Clone[string, Property](g.internal, graph.NewGraph[string, Property], graph.NewEdge[string, Property], graph.NewVertex[Property])
-		//gg := &Grammar{internal: tmpG, startSym: g.startSym}
-		g.MergeProduction()
-		distances := graph.FloydAlgorithm(g.internal)
-		g.internal.SetMetadata(Distance, distances)
-	}
-	dis := g.internal.GetMetadata(Distance).(map[string]map[string]float64)
-	if g.terminals == nil || len(g.terminals) == 0 {
-		g.terminals = make([]string, 0)
-		for _, v := range g.GetInternal().GetAllVertices() {
-			if v.GetProperty(Prop).Type == GrammarTerminal {
-				g.terminals = append(g.terminals, v.GetID())
-			}
-		}
-	}
-	mi, ma := math.Inf(1), math.Inf(-1)
-	for _, v := range g.terminals {
-		mi = min(dis[id][v], mi)
-		ma = max(dis[id][v], ma)
-	}
-	return mi, ma
-}
-
-func (g *Grammar) GetIndex(id string) *TrieNode {
-	if g.GetInternal().GetMetadata(Index) == nil {
-		g.BuildPath(id)
-	}
-	return g.GetInternal().GetMetadata(Index).(*TrieTree).Index[id]
-}
-func (g *Grammar) BuildPath(id string) {
-	root := g.GetNode(id)
-	if root == nil {
-		return
-	}
-	visited := make(map[string]bool)
-	trie := NewTrieNode(root)
-	index := &(map[string]*TrieNode{})
-	var dfs func(node *Node, path []string)
-	dfs = func(node *Node, path []string) {
-		if node == nil {
-			return
-		}
-		newPath := append(path, node.GetID())
-
-		if node.GetType() == GrammarTerminal {
-			trie.Insert(node, newPath, index)
-		} else if node.GetType() == GrammarID {
-			// do not visit back to the identifier, but we will add a notice
-			childNode := g.GetNode(node.GetContent())
-			if childNode == nil {
-				fmt.Println("empty node")
-				return
-			}
-			if visited[childNode.GetID()] {
-				trie.Insert(childNode, append(path, Visited+node.GetContent()), index)
-			}
-			if !visited[childNode.GetID()] {
-				visited[childNode.GetID()] = true
-				dfs(childNode, newPath)
-			}
-		} else {
-			for _, child := range node.GetSymbols() {
-				dfs(child, newPath)
-			}
-		}
-	}
-
-	dfs(root, []string{})
-	updateVisitedNodes(trie)
-	tree := &TrieTree{
-		Root:  trie,
-		Index: *index,
-	}
-
-	g.GetInternal().SetMetadata(Index, tree)
-}
-
-func updateVisitedNodes(node *TrieNode) bool {
-	if node == nil || len(node.Children) == 0 {
-		return false
-	}
-
-	allChildrenVisited := true
-	anyChildVisited := false
-	for key, child := range node.Children {
-		childVisited := updateVisitedNodes(child)
-		if childVisited && strings.HasPrefix(key, Visited) {
-			anyChildVisited = true
-		}
-		allChildrenVisited = allChildrenVisited && childVisited
-	}
-
-	// 根据节点的状态决定是否标记为 Visited
-	if (node.Node.GetType() == GrammarOR && allChildrenVisited) || (node.Node.GetType() == GrammarCatenate && anyChildVisited) {
-		// 更新当前节点为 Visited
-		// 这可能需要修改 TrieNode 的结构或添加一个标记
-		return true
-	}
-
-	return false
-}
+//func (g *Grammar) QueryDistance(id string) (float64, float64) {
+//	if g.internal.GetMetadata(Distance) == nil {
+//		g.MergeProduction()
+//		distances := graph.FloydAlgorithm(g.internal)
+//		g.internal.SetMetadata(Distance, distances)
+//	}
+//	dis := g.internal.GetMetadata(Distance).(map[string]map[string]float64)
+//	if g.terminals == nil || len(g.terminals) == 0 {
+//		g.terminals = make([]string, 0)
+//		for _, v := range g.GetInternal().GetAllVertices() {
+//			if v.GetProperty(Prop).Type == GrammarTerminal {
+//				g.terminals = append(g.terminals, v.GetID())
+//			}
+//		}
+//	}
+//	mi, ma := math.Inf(1), math.Inf(-1)
+//	for _, v := range g.terminals {
+//		mi = min(dis[id][v], mi)
+//		ma = max(dis[id][v], ma)
+//	}
+//	return mi, ma
+//}
 
 func (g *Grammar) BuildShortestNotation() {
 	vertices := g.internal.GetAllVertices()

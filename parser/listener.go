@@ -34,7 +34,7 @@ func newEbnfListener(startSym string) *ebnfListener {
 		currentProduction: &schemas.Node{},
 		stack:             []*schemas.Node{},
 		logger:            logger,
-		grammar:           schemas.NewGrammar(startSym),
+		grammar:           schemas.NewGrammar(schemas.WithStartSym(startSym)),
 		productions:       map[string]*schemas.Node{},
 	}
 	return listener

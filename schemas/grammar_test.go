@@ -79,7 +79,3 @@ func verifyNodePropertiesAndContent(t *testing.T, g *schemas.Grammar) {
 		t.Errorf("node2's 10 child should equal to nil \n")
 	}
 }
-func TestBuildPath(t *testing.T) {
-	g := createSampleGrammar()
-	g.BuildPath("node1")
-}

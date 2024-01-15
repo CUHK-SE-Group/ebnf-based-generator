@@ -21,11 +21,6 @@ func parseAndVisualize(file string) {
 		return fmt.Sprintf("id: %s\n content: %s\n type: %s", v.GetID(), escapeQuotes(v.GetProperty(schemas.Prop).Content), schemas.GetGrammarTypeStr(v.GetProperty(schemas.Prop).Type))
 	}, nil)
 }
-func TestBasicBuildPath(t *testing.T) {
-	p, _ := Parse("./testdata/complete/tinyc.ebnf", "")
-	tree := p.GetIndex("program")
-	fmt.Println(tree.ToJSON())
-}
 
 func TestBasic(t *testing.T) {
 	parseAndVisualize("./testdata/basic/basic_all.ebnf")
