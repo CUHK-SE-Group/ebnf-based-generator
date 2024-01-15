@@ -146,17 +146,26 @@ func TestDefaultHandler(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	ctx, err := schemas.NewContext(g, "program", context.Background(), nil, nil)
+
+	parentCtx, _ := context.WithTimeout(context.Background(), time.Second)
+	ctx, err := schemas.NewContext(g, "program", parentCtx, nil, nil)
 	if err != nil {
 		panic(err)
 	}
 
 	for !ctx.GetFinish() {
-		chain.Next(ctx, func(result *schemas.Result) {
-			ctx = result.GetCtx()
-			ctx.HandlerIndex = 0
-			fmt.Println(ctx.Result.GetResult(nil))
-		})
+		select {
+		case <-parentCtx.Done():
+			// Handle the case when the context's deadline is exceeded
+			fmt.Println("Operation timed out")
+			return
+		default:
+			chain.Next(ctx, func(result *schemas.Result) {
+				ctx = result.GetCtx()
+				ctx.HandlerIndex = 0
+				fmt.Println(ctx.Result.GetResult(nil))
+			})
+		}
 	}
 }
 

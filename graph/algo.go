@@ -14,15 +14,15 @@ type graphMeta struct {
 func TarjanSCC[EdgePropertyType any, VertexPropertyType any](graph Graph[EdgePropertyType, VertexPropertyType]) (map[string]string, Graph[EdgePropertyType, VertexPropertyType]) {
 	var (
 		index    int = 0
-		stack    []*VertexImpl[VertexPropertyType]
+		stack    []Vertex[VertexPropertyType]
 		inStack  = make(map[string]bool)
 		indices  = make(map[string]int)
 		lowLinks = make(map[string]int)
 		sccMap   = make(map[string]string) // Map From original vertex ID To SCC representative ID
 	)
 
-	var strongconnect func(v *VertexImpl[VertexPropertyType])
-	strongconnect = func(v *VertexImpl[VertexPropertyType]) {
+	var strongconnect func(v Vertex[VertexPropertyType])
+	strongconnect = func(v Vertex[VertexPropertyType]) {
 		indices[v.GetID()] = index
 		lowLinks[v.GetID()] = index
 		index++
@@ -30,7 +30,7 @@ func TarjanSCC[EdgePropertyType any, VertexPropertyType any](graph Graph[EdgePro
 		inStack[v.GetID()] = true
 
 		for _, edge := range graph.GetOutEdges(v) {
-			w := edge.GetTo().(*VertexImpl[VertexPropertyType])
+			w := edge.GetTo().(Vertex[VertexPropertyType])
 			if _, ok := indices[w.GetID()]; !ok {
 				strongconnect(w)
 				lowLinks[v.GetID()] = min(lowLinks[v.GetID()], lowLinks[w.GetID()])
@@ -56,7 +56,7 @@ func TarjanSCC[EdgePropertyType any, VertexPropertyType any](graph Graph[EdgePro
 
 	for _, v := range graph.GetAllVertices() {
 		if _, ok := indices[v.GetID()]; !ok {
-			strongconnect(v.(*VertexImpl[VertexPropertyType]))
+			strongconnect(v.(Vertex[VertexPropertyType]))
 		}
 	}
 

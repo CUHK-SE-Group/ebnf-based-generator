@@ -20,20 +20,6 @@ type MemGraph[EdgePropertyType any, VertexPropertyType any] struct {
 	dirty           bool
 }
 
-type VertexImpl[PropertyType any] struct {
-	id          string
-	propertyMap map[string]PropertyType
-	meta        any
-}
-
-type EdgeImpl[EdgePropertyType any, VertexPropertyType any] struct {
-	id          string
-	from        Vertex[VertexPropertyType]
-	to          Vertex[VertexPropertyType]
-	propertyMap map[string]EdgePropertyType
-	meta        any
-}
-
 func (g *MemGraph[EdgePropertyType, VertexPropertyType]) updateIndex() {
 	in := func(m map[string][]Edge[EdgePropertyType, VertexPropertyType], key string) bool {
 		_, ok := m[key]
@@ -158,73 +144,4 @@ func (g *MemGraph[EdgePropertyType, VertexPropertyType]) Save(file string) error
 }
 func (g *MemGraph[EdgePropertyType, VertexPropertyType]) Load(file string) error {
 	panic("unimplemented")
-}
-
-func (n *VertexImpl[PropertyType]) SetID(id string) {
-	n.id = id
-}
-func (n *VertexImpl[PropertyType]) SetMeta(m any) {
-	n.meta = m
-}
-func (n *VertexImpl[PropertyType]) GetMeta() any {
-	return n.meta
-}
-func (n *VertexImpl[PropertyType]) SetProperty(key string, val PropertyType) {
-	n.propertyMap[key] = val
-}
-
-func (n *VertexImpl[PropertyType]) GetID() string {
-	return n.id
-}
-
-func (n *VertexImpl[PropertyType]) GetProperty(key string) PropertyType {
-	val, _ := n.propertyMap[key]
-	return val
-}
-
-func (n *VertexImpl[PropertyType]) GetAllProperties() map[string]PropertyType {
-	return n.propertyMap
-}
-
-func (e *EdgeImpl[EdgePropertyType, VertexPropertyType]) SetID(id string) {
-	e.id = id
-}
-
-func (e *EdgeImpl[EdgePropertyType, VertexPropertyType]) SetFrom(vertex Vertex[VertexPropertyType]) {
-	e.from = vertex
-}
-
-func (e *EdgeImpl[EdgePropertyType, VertexPropertyType]) SetTo(vertex Vertex[VertexPropertyType]) {
-	e.to = vertex
-}
-
-func (e *EdgeImpl[EdgePropertyType, VertexPropertyType]) SetProperty(key string, val EdgePropertyType) {
-	e.propertyMap[key] = val
-}
-
-func (e *EdgeImpl[EdgePropertyType, VertexPropertyType]) GetID() string {
-	return e.id
-}
-
-func (e *EdgeImpl[EdgePropertyType, VertexPropertyType]) GetFrom() Vertex[VertexPropertyType] {
-	return e.from
-}
-
-func (e *EdgeImpl[EdgePropertyType, VertexPropertyType]) GetTo() Vertex[VertexPropertyType] {
-	return e.to
-}
-
-func (e *EdgeImpl[EdgePropertyType, VertexPropertyType]) GetProperty(key string) EdgePropertyType {
-	val, _ := e.propertyMap[key]
-	return val
-}
-
-func (e *EdgeImpl[EdgePropertyType, VertexPropertyType]) GetAllProperties() map[string]EdgePropertyType {
-	return e.propertyMap
-}
-func (e *EdgeImpl[EdgePropertyType, VertexPropertyType]) SetMeta(m any) {
-	e.meta = m
-}
-func (e *EdgeImpl[EdgePropertyType, VertexPropertyType]) GetMeta() any {
-	return e.meta
 }
