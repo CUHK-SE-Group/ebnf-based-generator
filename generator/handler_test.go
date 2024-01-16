@@ -26,20 +26,20 @@ type WeightedHandler struct {
 }
 
 func (h *WeightedHandler) Handle(chain *schemas.Chain, ctx *schemas.Context, cb schemas.ResponseCallBack) {
-	cur := ctx.SymbolStack.Top()
-	if len(cur.GetSymbols()) == 0 {
+	//cur := ctx.SymbolStack.Top()
+	if len(ctx.CurrentNode.GetSymbols()) == 0 {
 		chain.Next(ctx, cb)
 		return
 	}
 
-	ctx.SymbolStack.Pop()
+	//ctx.SymbolStack.Pop()
 	switch ctx.Mode {
 	case schemas.ShrinkMode:
-		sym := cur.GetSymbols()
+		sym := ctx.CurrentNode.GetSymbols()
 		candidates := make([]int, 0)
 		repechage := make([]int, 0)
 		for i, v := range sym {
-			if v.GetDistance() < cur.GetDistance() {
+			if v.GetDistance() < ctx.CurrentNode.GetDistance() {
 				candidates = append(candidates, i)
 			} else {
 				repechage = append(repechage, i)
@@ -52,7 +52,7 @@ func (h *WeightedHandler) Handle(chain *schemas.Chain, ctx *schemas.Context, cb 
 		votes := 0
 		for i, v := range sym {
 			if i != candidates[idx] {
-				votes += ctx.VisitedEdge[schemas.GetEdgeID(cur.GetID(), v.GetID())]
+				votes += ctx.VisitedEdge[schemas.GetEdgeID(ctx.CurrentNode.GetID(), v.GetID())]
 			}
 		}
 		//if (votes > 0 && ctx.VisitedEdge[schemas.GetEdgeID(cur.GetID(), sym[candidates[idx]].GetID())] > 3*votes) || (votes == 0 && ctx.VisitedEdge[schemas.GetEdgeID(cur.GetID(), sym[candidates[idx]].GetID())] > 20) {
@@ -62,17 +62,19 @@ func (h *WeightedHandler) Handle(chain *schemas.Chain, ctx *schemas.Context, cb 
 		//	ctx.SymbolStack.Push(sym[idx])
 		//	ctx.Result.AddEdge(cur, sym[idx])
 		//} else {
-		ctx.VisitedEdge[schemas.GetEdgeID(cur.GetID(), sym[candidates[idx]].GetID())]++
-		ctx.SymbolStack.Push(sym[candidates[idx]])
-		ctx.Result.AddNode(sym[candidates[idx]])
-		ctx.Result.AddEdge(cur, sym[candidates[idx]])
+		ctx.VisitedEdge[schemas.GetEdgeID(ctx.CurrentNode.GetID(), sym[candidates[idx]].GetID())]++
+		ctx.ResultBuffer = append(ctx.ResultBuffer, sym[candidates[idx]])
+		//ctx.SymbolStack.Push(sym[candidates[idx]])
+		//ctx.Result.AddNode(sym[candidates[idx]])
+		//ctx.Result.AddEdge(cur, sym[candidates[idx]])
 		//}
 	default:
-		idx := rand.Int() % len(cur.GetSymbols())
-		ctx.SymbolStack.Push((cur.GetSymbols())[idx])
-		ctx.VisitedEdge[schemas.GetEdgeID(cur.GetID(), (cur.GetSymbols())[idx].GetID())]++
-		ctx.Result.AddNode((cur.GetSymbols())[idx])
-		ctx.Result.AddEdge(cur, (cur.GetSymbols())[idx])
+		idx := rand.Int() % len(ctx.CurrentNode.GetSymbols())
+		ctx.ResultBuffer = append(ctx.ResultBuffer, ctx.CurrentNode.GetSymbol(idx))
+		//ctx.SymbolStack.Push((cur.GetSymbols())[idx])
+		//ctx.VisitedEdge[schemas.GetEdgeID(cur.GetID(), (cur.GetSymbols())[idx].GetID())]++
+		//ctx.Result.AddNode((cur.GetSymbols())[idx])
+		//ctx.Result.AddEdge(cur, (cur.GetSymbols())[idx])
 	}
 
 	chain.Next(ctx, cb)
@@ -226,6 +228,7 @@ func (h *WrapHandler) Handle(chain *schemas.Chain, ctx *schemas.Context, cb sche
 
 	ctx.CurrentNode = ctx.SymbolStack.Top() // clear the message exchange buffer
 	ctx.ResultBuffer = make([]*schemas.Node, 0)
+	fmt.Println("dealing with ", ctx.CurrentNode.GetID())
 	// route the request to different Chain
 	for k, c := range h.Chain {
 		if k&ctx.CurrentNode.GetType() != 0 {
@@ -234,16 +237,20 @@ func (h *WrapHandler) Handle(chain *schemas.Chain, ctx *schemas.Context, cb sche
 				panic(ctx.Error)
 				return
 			}
-			if len(ctx.ResultBuffer) == 0 {
-				ctx.Result.AddEdge(ctx.CurrentNode, ctx.CurrentNode)
-				//fmt.Println(ctx.CurrentNode)
-			}
+			//if len(ctx.ResultBuffer) == 0 {
+			//	ctx.Result.AddEdge(ctx.CurrentNode, ctx.CurrentNode)
+			//	//fmt.Println(ctx.CurrentNode)
+			//}
 			ctx.SymbolStack.Pop()
 			ctx.SymbolStack.Push(ctx.ResultBuffer...)
-			for _, v := range ctx.ResultBuffer {
-				ctx.Result.AddNode(v)
-				ctx.Result.AddEdge(ctx.CurrentNode, v)
+			for i := len(ctx.ResultBuffer) - 1; i >= 0; i-- {
+				ctx.Result.AddNode(ctx.ResultBuffer[i])
+				ctx.Result.AddEdge(ctx.CurrentNode, ctx.ResultBuffer[i])
 			}
+			//for _, v := range ctx.ResultBuffer {
+			//	ctx.Result.AddNode(v)
+			//	ctx.Result.AddEdge(ctx.CurrentNode, v)
+			//}
 			return
 		}
 	}
@@ -291,7 +298,7 @@ func TestHandlerChainMux(t *testing.T) {
 	g.BuildShortestNotation()
 
 	routerHandler := &WrapHandler{Chain: map[schemas.GrammarType]*schemas.Chain{}}
-	err = routerHandler.Register(wrapChain(&schemas.IDHandler{}), wrapChain(&schemas.CatHandler{}), wrapChain(&WeightedHandler{}), wrapChain(&schemas.OrHandler{}), wrapChain(&schemas.RepHandler{}), wrapChain(&schemas.BracketHandler{}), wrapChain(&schemas.TermHandler{}))
+	err = routerHandler.Register(wrapChain(&schemas.IDHandler{}), wrapChain(&schemas.CatHandler{}), wrapChain(&WeightedHandler{}), wrapChain(&schemas.RepHandler{}), wrapChain(&schemas.BracketHandler{}), wrapChain(&schemas.TermHandler{}))
 	if err != nil {
 		panic(err)
 	}
@@ -308,9 +315,8 @@ func TestHandlerChainMux(t *testing.T) {
 			ctx = result.GetCtx()
 		})
 		ctx.HandlerIndex = 0
-		ctx.Result.PrintTerminals("program#0")
-		fmt.Println("result", ctx.Result.GetResult(nil))
 	}
+
 	err = ctx.Result.Save("/tmp/grammarfile")
 	if err != nil {
 		t.Error(err)
@@ -350,7 +356,9 @@ func validateInput(input string) {
 
 func TestMutate(t *testing.T) {
 	g := schemas.NewGrammar(schemas.WithLoadFromFile("/tmp/grammarfile"))
-	err := graph.Visualize(g.GetInternal(), "fig1.dot", nil, nil)
+	err := graph.Visualize(g.GetInternal(), "fig1.dot", func(vertex graph.Vertex[schemas.Property]) string {
+		return fmt.Sprintf("%s\n%s", vertex.GetID(), vertex.GetProperty(schemas.Prop).Content)
+	}, nil)
 	if err != nil {
 		t.Error(err)
 	}

@@ -33,6 +33,7 @@ func (d *Derivation) AddEdge(from, to *Node) {
 
 	newfrom.SetID(d.getNodeID(from.GetID()))
 	newto.SetID(d.getNodeID(to.GetID()))
+	from.SetMeta(from.GetMeta() + 1)
 
 	newfrom.AddSymbol(newto)
 	d.EdgeHistory = append(d.EdgeHistory, GetEdgeID(newfrom.GetID(), newto.GetID()))
@@ -42,12 +43,15 @@ func isTermPreserve(content string) bool {
 }
 
 func (d *Derivation) GetResult(custom func(content string) string) string {
-	d.SymbolCnt = make(map[string]int)
+	root := d.Grammar.GetNode(d.Grammar.GetStartSym() + "#0")
+	if root == nil {
+		return ""
+	}
 	res := ""
-	for _, e := range d.EdgeHistory {
-		from, to := ExtractEdgeID(e)
-		if from == to {
-			cur := d.GetNode(to)
+	d.SymbolCnt = make(map[string]int)
+
+	dfs(root, func(cur *Node) {
+		if cur.GetType() == GrammarTerminal {
 			content := cur.GetContent()
 			if isTermPreserve(content) {
 				tmp := strings.Trim(content, "'\"")
@@ -67,12 +71,10 @@ func (d *Derivation) GetResult(custom func(content string) string) string {
 			if custom != nil {
 				content = custom(content)
 			}
-
 			res += content
-			d.SymbolCnt[to]++
-			continue
+			d.SymbolCnt[cur.GetID()]++
 		}
-	}
+	})
 	return res
 }
 

@@ -23,28 +23,23 @@ func (c *Chain) AddHandler(h Handler) {
 
 // Next is for to handle next handler in the chain
 func (c *Chain) Next(ctx *Context, f ResponseCallBack) {
-	for index := ctx.HandlerIndex; index < len(c.Handlers); index++ {
-		if ctx.SymbolStack.Top() == nil || ctx.SymbolStack.Empty() {
-			if !ctx.SymbolStack.Empty() {
-				panic(ctx)
-			}
-			if ctx.finish {
-				slog.Error("Warning: Symbol queue should not be empty")
-			}
-			ctx.finish = true
-			r := NewResult(ctx)
-			f(r)
-			return
+	index := ctx.HandlerIndex
+	if ctx.SymbolStack.Top() == nil || ctx.SymbolStack.Empty() {
+		if ctx.finish {
+			slog.Error("Warning: Symbol queue should not be empty")
 		}
-
-		// 如果类型符合
-		if ctx.SymbolStack.Top().GetType()&c.Handlers[index].Type() != 0 && satisfy(ctx, c.Handlers[index]) {
-			ctx.HandlerIndex = index + 1
-			c.Handlers[index].Handle(c, ctx, f)
-		}
+		ctx.finish = true
+		r := NewResult(ctx)
+		f(r)
+		return
 	}
-	r := NewResult(ctx)
-	f(r)
+	if index >= len(c.Handlers) {
+		return
+	}
+	ctx.HandlerIndex++
+	if ctx.SymbolStack.Top().GetType()&c.Handlers[index].Type() != 0 && satisfy(ctx, c.Handlers[index]) {
+		c.Handlers[index].Handle(c, ctx, f)
+	}
 }
 
 func satisfy(ctx *Context, handler Handler) bool {

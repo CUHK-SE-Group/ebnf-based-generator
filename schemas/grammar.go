@@ -110,6 +110,9 @@ func NewGrammar(opts ...Option) *Grammar {
 func (g *Grammar) GetInternal() graph.Graph[string, Property] {
 	return g.internal
 }
+func (g *Grammar) GetStartSym() string {
+	return g.internal.GetMetadata(StartSym).(string)
+}
 
 func (g *Grammar) GetNode(id string) *Node {
 	if inter := g.internal.GetVertexById(id); inter != nil {
@@ -263,6 +266,7 @@ func (g *Grammar) PrintTerminals(startSym string) {
 			fmt.Printf("%s", strings.Trim(node.GetContent(), "'\""))
 		}
 	})
+	fmt.Println()
 }
 func NewNode(g *Grammar, tp GrammarType, id, content string) *Node {
 	n := graph.NewVertex[Property]()
@@ -281,7 +285,7 @@ func (g *Node) newEdge(id string, from, to *Node) graph.Edge[string, Property] {
 	res.SetTo(to.internal)
 	res.SetMeta(g.GetMeta())
 
-	g.SetMeta(g.GetMeta() + 1)
+	g.SetMeta(g.GetMeta() + 1) // todo: fix this. To align with the snapshot of original node
 	return res
 }
 
@@ -347,7 +351,7 @@ func getNumber(id string) int {
 func (g *Node) GetSymbols() []*Node {
 	edges := g.GetGrammar().internal.GetOutEdges(g.internal)
 	sort.Slice(edges, func(i, j int) bool {
-		return edges[i].GetMeta().(int) < edges[j].GetMeta().(int)
+		return edges[i].GetMeta().(int) > edges[j].GetMeta().(int)
 	})
 	f := func(edge graph.Edge[string, Property]) *Node {
 		return &Node{internal: edge.GetTo()}
