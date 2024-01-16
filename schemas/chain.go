@@ -41,7 +41,6 @@ func (c *Chain) Next(ctx *Context, f ResponseCallBack) {
 		if ctx.SymbolStack.Top().GetType()&c.Handlers[index].Type() != 0 && satisfy(ctx, c.Handlers[index]) {
 			ctx.HandlerIndex = index + 1
 			c.Handlers[index].Handle(c, ctx, f)
-			return
 		}
 	}
 	r := NewResult(ctx)

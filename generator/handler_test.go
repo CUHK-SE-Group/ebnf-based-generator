@@ -17,6 +17,7 @@ import (
 	"regexp"
 	"runtime"
 	"runtime/pprof"
+	"strings"
 	"testing"
 	"time"
 )
@@ -98,8 +99,9 @@ func (h *MonitorHandler) Handle(chain *schemas.Chain, ctx *schemas.Context, cb s
 		return
 	}
 	constraints := ctx.Constraint.GetConstraints()
+	trace := append(ctx.SymbolStack.ProductionTrace, strings.Split(ctx.SymbolStack.Top().GetID(), "#")[0])
 	for _, v := range constraints {
-		if query.MatchPattern(ctx.SymbolStack.ProductionTrace, v.FirstNode) {
+		if query.MatchPattern(trace, v.FirstNode) {
 			switch v.FirstOp.Type {
 			case schemas.FUNC:
 				ctx, _ = v.FirstOp.Func(ctx)
@@ -107,7 +109,7 @@ func (h *MonitorHandler) Handle(chain *schemas.Chain, ctx *schemas.Context, cb s
 
 			}
 		}
-		if query.MatchPattern(ctx.SymbolStack.ProductionTrace, v.SecondNode) {
+		if query.MatchPattern(trace, v.SecondNode) {
 			switch v.SecondOp.Type {
 			case schemas.FUNC:
 				ctx, _ = v.SecondOp.Func(ctx)
@@ -206,12 +208,128 @@ func TestWeightedHandler(t *testing.T) {
 		panic(err)
 	}
 
+	input := ctx.Result.GetResult(nil)
+	validateInput(input)
+}
+
+type WrapHandler struct {
+	Chain map[schemas.GrammarType]*schemas.Chain
+}
+
+func (h *WrapHandler) Handle(chain *schemas.Chain, ctx *schemas.Context, cb schemas.ResponseCallBack) {
+	// save and restore the environment
+	handlerIndex := ctx.HandlerIndex
+	ctx.HandlerIndex = 0
+	defer func() {
+		ctx.HandlerIndex = handlerIndex
+	}()
+
+	ctx.CurrentNode = ctx.SymbolStack.Top() // clear the message exchange buffer
+	ctx.ResultBuffer = make([]*schemas.Node, 0)
+	// route the request to different Chain
+	for k, c := range h.Chain {
+		if k&ctx.CurrentNode.GetType() != 0 {
+			c.Next(ctx, cb)
+			if ctx.Error != nil {
+				panic(ctx.Error)
+				return
+			}
+			if len(ctx.ResultBuffer) == 0 {
+				ctx.Result.AddEdge(ctx.CurrentNode, ctx.CurrentNode)
+				//fmt.Println(ctx.CurrentNode)
+			}
+			ctx.SymbolStack.Pop()
+			ctx.SymbolStack.Push(ctx.ResultBuffer...)
+			for _, v := range ctx.ResultBuffer {
+				ctx.Result.AddNode(v)
+				ctx.Result.AddEdge(ctx.CurrentNode, v)
+			}
+			return
+		}
+	}
+	panic(fmt.Errorf("there is no such handler that can deal with %v", ctx.CurrentNode.GetType()))
+}
+
+func (h *WrapHandler) HookRoute() []regexp.Regexp {
+	return make([]regexp.Regexp, 0)
+}
+
+func (h *WrapHandler) Name() string {
+	return "mux"
+}
+
+func (h *WrapHandler) Type() schemas.GrammarType {
+	return math.MaxInt
+}
+
+func (h *WrapHandler) Register(chain ...*schemas.Chain) error {
+	for _, v := range chain {
+		if len(v.Handlers) == 0 {
+			return fmt.Errorf("the length of chain should not be zero")
+		}
+		h.Chain[v.Handlers[0].Type()] = v // note: every grammarType should only has one handler chain
+	}
+	return nil
+}
+
+func wrapChain(h schemas.Handler) *schemas.Chain {
+	chain, _ := schemas.CreateChain(h.Name(), h)
+	return chain
+}
+
+func TestHandlerChainMux(t *testing.T) {
+	g, err := parser.Parse("./testdata/complete/tinyc.ebnf", "program")
+	if err != nil {
+		panic(err)
+	}
+	cons := schemas.MaxLimit
+	cons.FirstNode = "paren_expr"
+	cons.SecondNode = "paren_expr"
+	consg := schemas.NewConstraintGraph()
+	consg.AddBinaryConstraint(cons)
+	g.MergeProduction()
+	g.BuildShortestNotation()
+
+	routerHandler := &WrapHandler{Chain: map[schemas.GrammarType]*schemas.Chain{}}
+	err = routerHandler.Register(wrapChain(&schemas.IDHandler{}), wrapChain(&schemas.CatHandler{}), wrapChain(&WeightedHandler{}), wrapChain(&schemas.OrHandler{}), wrapChain(&schemas.RepHandler{}), wrapChain(&schemas.BracketHandler{}), wrapChain(&schemas.TermHandler{}))
+	if err != nil {
+		panic(err)
+	}
+	chain, err := schemas.CreateChain("main", &MonitorHandler{}, routerHandler)
+	if err != nil {
+		panic(err)
+	}
+	ctx, err := schemas.NewContext(g, "program", context.Background(), consg, nil)
+	if err != nil {
+		panic(err)
+	}
+	for !ctx.GetFinish() {
+		chain.Next(ctx, func(result *schemas.Result) {
+			ctx = result.GetCtx()
+		})
+		ctx.HandlerIndex = 0
+		ctx.Result.PrintTerminals("program#0")
+		fmt.Println("result", ctx.Result.GetResult(nil))
+	}
+	err = ctx.Result.Save("/tmp/grammarfile")
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(ctx.Result.GetResult(nil))
+	fmt.Printf("edge coverage: %d/%d\n", len(ctx.VisitedEdge), len(ctx.Grammar.GetInternal().GetAllEdges()))
+	err = graph.Visualize(ctx.Result.Grammar.GetInternal(), "fig.dot", nil, nil)
+	if err != nil {
+		panic(err)
+	}
+
+	input := ctx.Result.GetResult(nil)
+	validateInput(input)
+}
+
+func validateInput(input string) {
 	timeout := 1 * time.Second
 	ctxtime, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel() // 确保所有路径上都调用了cancel
-
-	input := ctx.Result.GetResult(nil)
-
 	cmd := exec.CommandContext(ctxtime, "./tinyc")
 	var in bytes.Buffer
 	in.Write([]byte(input))
@@ -238,6 +356,7 @@ func TestMutate(t *testing.T) {
 	}
 	g.PrintTerminals("program#0")
 }
+
 func TestSaveAndLoad(t *testing.T) {
 	g, err := parser.Parse("./testdata/complete/tinyc.ebnf", "program")
 	if err != nil {

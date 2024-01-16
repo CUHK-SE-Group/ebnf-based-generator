@@ -34,19 +34,17 @@ type CatHandler struct {
 }
 
 func (h *CatHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
-	cur := ctx.SymbolStack.Top()
-	if len(cur.GetSymbols()) == 0 {
+	if len(ctx.CurrentNode.GetSymbols()) == 0 {
 		chain.Next(ctx, cb)
 		return
 	}
-	ctx.SymbolStack.Pop()
-	for i := len(cur.GetSymbols()) - 1; i >= 0; i-- {
-		ctx.SymbolStack.Push((cur.GetSymbols())[i])
+	for i := len(ctx.CurrentNode.GetSymbols()) - 1; i >= 0; i-- {
+		ctx.ResultBuffer = append(ctx.ResultBuffer, ctx.CurrentNode.GetSymbols()[i])
 	}
-	for i := 0; i < len(cur.GetSymbols()); i++ {
-		ctx.Result.AddNode((cur.GetSymbols())[i])
-		ctx.Result.AddEdge(cur, (cur.GetSymbols())[i])
-	}
+	//for i := 0; i < len(cur.GetSymbols()); i++ {
+	//	ctx.Result.AddNode((cur.GetSymbols())[i])
+	//	ctx.Result.AddEdge(cur, (cur.GetSymbols())[i])
+	//}
 	chain.Next(ctx, cb)
 }
 
@@ -67,18 +65,16 @@ type OrHandler struct {
 }
 
 func (h *OrHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
-	cur := ctx.SymbolStack.Top()
-	if len(cur.GetSymbols()) == 0 {
+	if len(ctx.CurrentNode.GetSymbols()) == 0 {
 		chain.Next(ctx, cb)
 		return
 	}
-	ctx.SymbolStack.Pop()
-	idx := rand.Int() % len(cur.GetSymbols())
-	ctx.SymbolStack.Push((cur.GetSymbols())[idx])
+	idx := rand.Int() % len(ctx.CurrentNode.GetSymbols())
+	ctx.ResultBuffer = append(ctx.ResultBuffer, ctx.CurrentNode.GetSymbol(idx))
 
-	ctx.Result.AddNode((cur.GetSymbols())[idx])
-	ctx.Result.AddEdge(cur, (cur.GetSymbols())[idx])
-	ctx.VisitedEdge[GetEdgeID(cur.GetID(), (cur.GetSymbols())[idx].GetID())]++
+	//ctx.Result.AddNode((cur.GetSymbols())[idx])
+	//ctx.Result.AddEdge(cur, (cur.GetSymbols())[idx])
+	//ctx.VisitedEdge[GetEdgeID(cur.GetID(), (cur.GetSymbols())[idx].GetID())]++
 	chain.Next(ctx, cb)
 }
 
@@ -98,18 +94,15 @@ type IDHandler struct {
 }
 
 func (h *IDHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
-	cur := ctx.SymbolStack.Top()
-	ctx.SymbolStack.Pop()
-
 	// 是Identifier, 那么去找新的production
-	node := ctx.Grammar.GetNode(cur.GetContent())
+	node := ctx.Grammar.GetNode(ctx.CurrentNode.GetContent())
 	if node == nil {
-		slog.Error("The identifier does not Existed", "id", cur.GetContent())
+		slog.Error("The identifier does not Existed", "id", ctx.CurrentNode.GetContent())
 		return // omit error
 	}
-	ctx.Result.AddNode(node)
-	ctx.Result.AddEdge(cur, node)
-	ctx.SymbolStack.Push(node)
+	//ctx.Result.AddNode(node)
+	//ctx.Result.AddEdge(ctx.CurrentNode, node)
+	ctx.ResultBuffer = append(ctx.ResultBuffer, node)
 	chain.Next(ctx, cb)
 }
 
@@ -129,15 +122,13 @@ type RepHandler struct {
 }
 
 func (r *RepHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
-	cur := ctx.SymbolStack.Top()
-	ctx.SymbolStack.Pop()
 	// 默认设置 10% 的概率来重复一次
 	if rand.Intn(10) > 8 {
-		ctx.SymbolStack.Push(cur.GetSymbols()...)
-		for _, node := range cur.GetSymbols() {
-			ctx.Result.AddNode(node)
-			ctx.Result.AddEdge(cur, node)
-		}
+		ctx.ResultBuffer = append(ctx.ResultBuffer, ctx.CurrentNode.GetSymbols()...)
+		//for _, node := range ctx.CurrentNode.GetSymbols() {
+		//	ctx.Result.AddNode(node)
+		//	ctx.Result.AddEdge(cur, node)
+		//}
 	}
 	chain.Next(ctx, cb)
 }
@@ -172,14 +163,11 @@ func (h *TermHandler) stripQuote(content string) string {
 }
 
 func (h *TermHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
-	cur := ctx.SymbolStack.Top()
-	ctx.SymbolStack.Pop()
-
-	if len(cur.GetSymbols()) != 0 {
+	if len(ctx.CurrentNode.GetSymbols()) != 0 {
 		slog.Error("Pattern mismatched[Terminal]")
 		return
 	}
-	ctx.Result.AddEdge(cur, cur) // 用一个自环标记到达了最后的终结符节点
+	//ctx.Result.AddEdge(cur, cur) // 用一个自环标记到达了最后的终结符节点
 	chain.Next(ctx, cb)
 }
 
@@ -199,22 +187,23 @@ type BracketHandler struct {
 }
 
 func (h *BracketHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
-	cur := ctx.SymbolStack.Top()
-	ctx.SymbolStack.Pop()
-	children := cur.GetSymbols()
+	//cur := ctx.SymbolStack.Top()
+	//ctx.SymbolStack.Pop()
+	children := ctx.CurrentNode.GetSymbols()
 	if len(children) == 0 {
 		slog.Error("Pattern mismatched[Identifier]")
 		return
 	}
 	// todo, 注释这段代码。这段代码是为了测试
-	if strings.Contains(cur.GetContent(), "SP") {
+	if strings.Contains(ctx.CurrentNode.GetContent(), "SP") {
 		for i := len(children) - 1; i >= 0; i-- {
-			ctx.SymbolStack.Push(children[i])
+			//ctx.SymbolStack.Push(children[i])
+			ctx.ResultBuffer = append(ctx.ResultBuffer, children[i])
 		}
-		for i := 0; i < len(children); i++ {
-			ctx.Result.AddNode(children[i])
-			ctx.Result.AddEdge(cur, children[i])
-		}
+		//for i := 0; i < len(children); i++ {
+		//	ctx.Result.AddNode(children[i])
+		//	ctx.Result.AddEdge(ctx.CurrentNode, children[i])
+		//}
 	}
 	chain.Next(ctx, cb)
 }
@@ -235,20 +224,16 @@ type PlusHandler struct {
 }
 
 func (h *PlusHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
-	cur := ctx.SymbolStack.Top()
-	ctx.SymbolStack.Pop()
-	children := cur.GetSymbols()
+	//cur := ctx.SymbolStack.Top()
+	//ctx.SymbolStack.Pop()
+	children := ctx.CurrentNode.GetSymbols()
 	if len(children) == 0 {
 		slog.Error("Pattern mismatched[Identifier]")
 		return
 	}
 	for j := 0; j < rand.Intn(10)+1; j++ {
 		for i := len(children) - 1; i >= 0; i-- {
-			ctx.SymbolStack.Push(children[i])
-		}
-		for i := 0; i < len(children); i++ {
-			ctx.Result.AddNode(children[i])
-			ctx.Result.AddEdge(cur, children[i])
+			ctx.ResultBuffer = append(ctx.ResultBuffer, children[i])
 		}
 	}
 
@@ -272,7 +257,6 @@ type SubHandler struct {
 }
 
 func (h *SubHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
-	ctx.SymbolStack.Pop()
 	chain.Next(ctx, cb)
 }
 
@@ -311,9 +295,7 @@ type OptionHandler struct {
 }
 
 func (h *OptionHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
-	cur := ctx.SymbolStack.Top()
-	fmt.Println("dealing with", cur.GetContent())
-	ctx.SymbolStack.Pop()
+	fmt.Println("dealing with", ctx.CurrentNode.GetContent())
 	chain.Next(ctx, cb)
 }
 

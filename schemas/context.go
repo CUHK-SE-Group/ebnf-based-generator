@@ -90,6 +90,10 @@ type Context struct {
 	Mode           Mode
 	Constraint     *ConstraintGraph
 	MemoryExchange map[string]int
+
+	CurrentNode  *Node
+	ResultBuffer []*Node
+	Error        error
 }
 
 type NodeRuntimeInfo struct {
