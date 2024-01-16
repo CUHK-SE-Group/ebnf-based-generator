@@ -167,8 +167,15 @@ func (h *TermHandler) Handle(chain *Chain, ctx *Context, cb ResponseCallBack) {
 		slog.Error("Pattern mismatched[Terminal]")
 		return
 	}
-	//ctx.tmp += ctx.CurrentNode.GetContent()
-	//fmt.Println(ctx.tmp)
+	if len(ctx.tmp) == 0 {
+		ctx.tmp = make([]string, 0)
+	}
+	ctx.tmp = append(ctx.tmp, strings.Trim(ctx.CurrentNode.GetContent(), "'"))
+	fmt.Printf("============correct: ")
+	for i := len(ctx.tmp) - 1; i >= 0; i-- {
+		fmt.Printf("%s", ctx.tmp[i])
+	}
+	fmt.Println()
 
 	//ctx.Result.AddEdge(cur, cur) // 用一个自环标记到达了最后的终结符节点
 	chain.Next(ctx, cb)

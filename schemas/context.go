@@ -94,7 +94,8 @@ type Context struct {
 	CurrentNode  *Node
 	ResultBuffer []*Node
 	Error        error
-	tmp          string
+	tmp          []string
+	Tmp1         []string
 }
 
 type NodeRuntimeInfo struct {
