@@ -1,0 +1,47 @@
+syntax = "proto3";
+import "google/protobuf/any.proto";
+option go_package = "github.com/CUHK-SE-Group/generic-generator/schemas/ffi";
+message FSGraph {
+  map<string, FSEdge> edgeMap = 1;
+  map<string, FSVertex> vertexMap = 2;
+  map<string, google.protobuf.Any> metadata = 3;
+  bool dirty = 6;
+}
+
+message FSVertex {
+  string id = 1;
+  map<string, Property> propertyMap = 2;
+  google.protobuf.Any meta = 3;
+}
+
+message FSEdge {
+  string id = 1;
+  string from = 2;
+  string to = 3;
+  map<string, string> propertyMap = 4;
+  google.protobuf.Any meta = 5;
+}
+
+message Property {
+  uint64 type = 1;
+  string root = 2;
+  string content = 4;
+  int32 distanceToTerminal = 5;
+}
+
+message FSEdgeList {
+  repeated FSEdge edges = 1;
+}
+
+message BoolValue {
+  bool value = 1;
+}
+message IntValue {
+  uint64 value = 1;
+}
+
+// StringValue message to wrap a string type
+message StringValue {
+  string value = 1;
+}
+

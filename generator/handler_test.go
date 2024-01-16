@@ -181,7 +181,7 @@ func TestWeightedHandler(t *testing.T) {
 	consg.AddBinaryConstraint(cons)
 	g.MergeProduction()
 	g.BuildShortestNotation()
-	chain, err := schemas.CreateChain("test", &MonitorHandler{}, &schemas.CatHandler{}, &schemas.IDHandler{}, &schemas.TermHandler{}, &WeightedHandler{}, &schemas.OrHandler{}, &schemas.RepHandler{}, &schemas.BracketHandler{})
+	chain, err := schemas.CreateChain("test", &MonitorHandler{}, &schemas.IDHandler{}, &schemas.CatHandler{}, &WeightedHandler{}, &schemas.OrHandler{}, &schemas.RepHandler{}, &schemas.BracketHandler{}, &schemas.TermHandler{})
 	if err != nil {
 		panic(err)
 	}
@@ -194,6 +194,10 @@ func TestWeightedHandler(t *testing.T) {
 			ctx = result.GetCtx()
 			ctx.HandlerIndex = 0
 		})
+	}
+	err = ctx.Result.Save("/tmp/grammarfile")
+	if err != nil {
+		t.Error(err)
 	}
 	fmt.Println(ctx.Result.GetResult(nil))
 	fmt.Printf("edge coverage: %d/%d\n", len(ctx.VisitedEdge), len(ctx.Grammar.GetInternal().GetAllEdges()))
@@ -224,6 +228,56 @@ func TestWeightedHandler(t *testing.T) {
 		}
 	}
 	fmt.Println(string(output))
+}
+
+func TestMutate(t *testing.T) {
+	g := schemas.NewGrammar(schemas.WithLoadFromFile("/tmp/grammarfile"))
+	err := graph.Visualize(g.GetInternal(), "fig1.dot", nil, nil)
+	if err != nil {
+		t.Error(err)
+	}
+	g.PrintTerminals("program#0")
+}
+func TestSaveAndLoad(t *testing.T) {
+	g, err := parser.Parse("./testdata/complete/tinyc.ebnf", "program")
+	if err != nil {
+		panic(err)
+
+	}
+	err = g.Save("/tmp/grammarfile")
+	if err != nil {
+		t.Error(err)
+	}
+	newg := schemas.NewGrammar(schemas.WithLoadFromFile("/tmp/grammarfile"))
+	n := newg.GetNode("program")
+	n.GetSymbols() // refresh the cache
+
+	if len(g.GetInternal().GetAllEdges()) != len(newg.GetInternal().GetAllEdges()) {
+		t.Error("the edge num should be equal")
+	}
+	if len(g.GetInternal().GetAllVertices()) != len(newg.GetInternal().GetAllVertices()) {
+		t.Error("the vertex num should be equal")
+	}
+	if len(g.GetInternal().GetAllMetadata()) != len(newg.GetInternal().GetAllMetadata()) {
+		t.Error("the metadata num should be equal")
+	}
+	for _, v := range g.GetInternal().GetAllEdges() {
+		e := newg.GetInternal().GetEdgeById(v.GetID())
+		if e == nil || e.GetFrom().GetID() != v.GetFrom().GetID() || e.GetTo().GetID() != v.GetTo().GetID() {
+			t.Errorf("%s not found in new grammar", v.GetID())
+		}
+	}
+	for _, v := range g.GetInternal().GetAllVertices() {
+		e := newg.GetInternal().GetVertexById(v.GetID())
+		if e == nil || e.GetProperty(schemas.Prop).Content != v.GetProperty(schemas.Prop).Content || e.GetProperty(schemas.Prop).Type != v.GetProperty(schemas.Prop).Type || e.GetProperty(schemas.Prop).DistanceToTerminal != v.GetProperty(schemas.Prop).DistanceToTerminal {
+			t.Errorf("%s not found in new grammar", v.GetID())
+		}
+	}
+	for k, v := range g.GetInternal().GetAllMetadata() {
+		if newg.GetInternal().GetMetadata(k) != v {
+			t.Errorf("%s not found in new grammar", k)
+		}
+	}
 }
 
 func TestWeightHandlerManyTimes(t *testing.T) {

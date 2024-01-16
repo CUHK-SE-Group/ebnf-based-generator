@@ -33,7 +33,6 @@ type Graph[EdgePropertyType any, VertexPropertyType any] interface {
 	GetAllMetadata() map[Metadata]any
 	GetVertexById(id string) Vertex[VertexPropertyType]
 	GetEdgeById(id string) Edge[EdgePropertyType, VertexPropertyType]
-	Save(file string) error
 }
 
 type Edge[EdgePropertyType any, VertexPropertyType any] interface {
@@ -223,14 +222,9 @@ type Options struct {
 }
 type Option func(*Options)
 
-func WithPersistent(a bool) Option {
+func WithPersistent(persistent bool) Option {
 	return func(o *Options) {
-		o.FSEnabled = a
-	}
-}
-func WithReadFile(filename string) Option {
-	return func(o *Options) {
-		o.ReadFileName = filename
+		o.FSEnabled = persistent
 	}
 }
 

@@ -3,6 +3,7 @@ package schemas
 import (
 	"fmt"
 	"log/slog"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -29,9 +30,6 @@ const (
 )
 const (
 	Prop     = "Property"
-	Index    = "index"
-	Visited  = "visited_"
-	Distance = "distance"
 	StartSym = "startSym"
 )
 
@@ -55,14 +53,14 @@ func GetGrammarTypeStr(t GrammarType) string {
 
 type Property struct {
 	Type               GrammarType
-	Root               *Node
 	Gram               *Grammar
 	Content            string
 	DistanceToTerminal int
 }
 
 type Options struct {
-	StartSym string
+	StartSym     string
+	LoadFromFile string
 }
 
 type Option func(*Options)
@@ -72,11 +70,22 @@ func WithStartSym(startSym string) Option {
 		o.StartSym = startSym
 	}
 }
+func WithLoadFromFile(filename string) Option {
+	return func(o *Options) {
+		o.LoadFromFile = filename
+	}
+}
 
 type Grammar struct {
 	internal graph.Graph[string, Property]
-	//startSym  string
-	//terminals []string // cache
+}
+
+func (g *Grammar) Save(filename string) error {
+	data, err := marshalGrammar(g)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(filename, data, 0644)
 }
 
 func NewGrammar(opts ...Option) *Grammar {
@@ -84,9 +93,14 @@ func NewGrammar(opts ...Option) *Grammar {
 	for _, opt := range opts {
 		opt(&options)
 	}
-
-	newG := &Grammar{
-		internal: graph.NewGraph[string, Property](),
+	newG := &Grammar{}
+	newG.internal = graph.NewGraph[string, Property](graph.WithPersistent(true))
+	if options.LoadFromFile != "" {
+		file, err := os.ReadFile(options.LoadFromFile)
+		if err != nil {
+			panic(err)
+		}
+		newG, err = unmarshalGrammar(file)
 	}
 	if options.StartSym != "" {
 		newG.internal.SetMetadata(StartSym, options.StartSym)
@@ -132,30 +146,6 @@ func (p *Grammar) MergeProduction() {
 		queue = queue[1:]
 	}
 }
-
-// QueryDistance query for the largest and minimum distance to the terminal
-//func (g *Grammar) QueryDistance(id string) (float64, float64) {
-//	if g.internal.GetMetadata(Distance) == nil {
-//		g.MergeProduction()
-//		distances := graph.FloydAlgorithm(g.internal)
-//		g.internal.SetMetadata(Distance, distances)
-//	}
-//	dis := g.internal.GetMetadata(Distance).(map[string]map[string]float64)
-//	if g.terminals == nil || len(g.terminals) == 0 {
-//		g.terminals = make([]string, 0)
-//		for _, v := range g.GetInternal().GetAllVertices() {
-//			if v.GetProperty(Prop).Type == GrammarTerminal {
-//				g.terminals = append(g.terminals, v.GetID())
-//			}
-//		}
-//	}
-//	mi, ma := math.Inf(1), math.Inf(-1)
-//	for _, v := range g.terminals {
-//		mi = min(dis[id][v], mi)
-//		ma = max(dis[id][v], ma)
-//	}
-//	return mi, ma
-//}
 
 func (g *Grammar) BuildShortestNotation() {
 	vertices := g.internal.GetAllVertices()
@@ -245,24 +235,54 @@ type Node struct {
 	internal graph.Vertex[Property]
 }
 
-func newEdge(id string, from, to *Node) graph.Edge[string, Property] {
-	res := graph.NewEdge[string, Property]()
-	res.SetID(id)
-	res.SetFrom(from.internal)
-	res.SetTo(to.internal)
-	return res
-}
+func dfs(node *Node, visit func(*Node)) {
+	if node == nil {
+		return
+	}
 
+	// 访问当前节点
+	visit(node)
+
+	// 递归遍历子节点
+	nodes := node.GetSymbols()
+	for _, child := range nodes {
+		if child.GetID() == node.GetID() {
+			continue
+		}
+		dfs(child, visit)
+	}
+}
+func (g *Grammar) PrintTerminals(startSym string) {
+	root := g.GetNode(startSym)
+	if root == nil {
+		return
+	}
+
+	dfs(root, func(node *Node) {
+		if node.GetType() == GrammarTerminal {
+			fmt.Printf("%s", strings.Trim(node.GetContent(), "'\""))
+		}
+	})
+}
 func NewNode(g *Grammar, tp GrammarType, id, content string) *Node {
 	n := graph.NewVertex[Property]()
 	n.SetProperty(Prop, Property{
 		Type:    tp,
-		Root:    nil,
 		Gram:    g,
 		Content: content,
 	})
 	n.SetID(id)
 	return &Node{internal: n}
+}
+func (g *Node) newEdge(id string, from, to *Node) graph.Edge[string, Property] {
+	res := graph.NewEdge[string, Property]()
+	res.SetID(id)
+	res.SetFrom(from.internal)
+	res.SetTo(to.internal)
+	res.SetMeta(g.GetMeta())
+
+	g.SetMeta(g.GetMeta() + 1)
+	return res
 }
 
 func (g *Node) Clone(belongto *Grammar) *Node {
@@ -288,13 +308,15 @@ func (g *Node) GetID() string {
 func (g *Node) SetID(id string) {
 	g.internal.SetID(id)
 }
-
-func (g *Node) SetRoot(r *Node) {
-	ori := g.internal.GetProperty(Prop)
-	ori.Root = r
-	g.internal.SetProperty(Prop, ori)
+func (g *Node) GetMeta() int {
+	if g.internal.GetMeta() == nil {
+		return 0
+	}
+	return g.internal.GetMeta().(int)
 }
-
+func (g *Node) SetMeta(cnt int) {
+	g.internal.SetMeta(cnt)
+}
 func (g *Node) SetType(t GrammarType) {
 	ori := g.internal.GetProperty(Prop)
 	ori.Type = t
@@ -306,7 +328,7 @@ func (g *Node) GetGrammar() *Grammar {
 }
 
 func (g *Node) AddSymbol(new *Node) int {
-	e := newEdge(GetEdgeID(g.GetID(), new.GetID()), g, new)
+	e := g.newEdge(GetEdgeID(g.GetID(), new.GetID()), g, new)
 	g.GetGrammar().internal.AddEdge(e)
 	return len(g.GetGrammar().internal.GetOutEdges(g.internal)) - 1
 }
@@ -323,15 +345,14 @@ func getNumber(id string) int {
 	return num1
 }
 func (g *Node) GetSymbols() []*Node {
+	edges := g.GetGrammar().internal.GetOutEdges(g.internal)
+	sort.Slice(edges, func(i, j int) bool {
+		return edges[i].GetMeta().(int) < edges[j].GetMeta().(int)
+	})
 	f := func(edge graph.Edge[string, Property]) *Node {
 		return &Node{internal: edge.GetTo()}
 	}
-	ori := A.Map(f)(g.GetGrammar().internal.GetOutEdges(g.internal))
-	sort.Slice(ori, func(i, j int) bool {
-		num1 := getNumber(ori[i].GetID())
-		num2 := getNumber(ori[j].GetID())
-		return num1 < num2
-	})
+	ori := A.Map(f)(edges)
 	return ori
 }
 

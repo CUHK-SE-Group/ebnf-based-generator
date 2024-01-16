@@ -33,7 +33,6 @@ func createSampleGrammar() *schemas.Grammar {
 		for j := 0; j < 3; j++ {
 			child := schemas.NewNode(g, schemas.GrammarProduction, fmt.Sprintf("child%d#%d", i, j), "test")
 			father.AddSymbol(child)
-			child.SetRoot(father)
 		}
 	}
 	return g
@@ -78,4 +77,18 @@ func verifyNodePropertiesAndContent(t *testing.T, g *schemas.Grammar) {
 	if g.GetNode("node#2").GetSymbol(10) != nil {
 		t.Errorf("node2's 10 child should equal to nil \n")
 	}
+}
+
+func TestMarshalAndUnmarshal(t *testing.T) {
+	g := createSampleGrammar()
+	graph.Visualize(g.GetInternal(), "./fig.dot", nil, nil)
+
+	for i := 0; i < 10; i++ {
+		n := g.GetNode(fmt.Sprintf("node#%d", i))
+		children := n.GetSymbols()
+		for _, v := range children {
+			fmt.Println(v.GetID())
+		}
+	}
+
 }

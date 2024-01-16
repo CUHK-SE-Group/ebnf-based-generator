@@ -31,7 +31,7 @@ func (d *Derivation) AddEdge(from, to *Node) {
 	newfrom := from.Clone(d.Grammar)
 	newto := to.Clone(d.Grammar)
 
-	newfrom.SetID(d.getNodeID(from.GetID())) // update the `from` node to the current existing node
+	newfrom.SetID(d.getNodeID(from.GetID()))
 	newto.SetID(d.getNodeID(to.GetID()))
 
 	newfrom.AddSymbol(newto)

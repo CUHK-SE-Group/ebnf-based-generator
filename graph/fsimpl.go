@@ -164,6 +164,12 @@ func load[EdgePropertyType any, VertexPropertyType any](file string) (Graph[Edge
 	if err != nil {
 		return nil, err
 	}
+	//g := NewGraph[EdgePropertyType, VertexPropertyType](WithPersistent(true))
+	//err = msgpack.Unmarshal(fileData, g)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//return g, nil
 	deserializedGraph, err := deserializeGraph[EdgePropertyType, VertexPropertyType](fileData)
 	if err != nil {
 		return nil, err
@@ -240,6 +246,11 @@ func (e *FSEdgeImpl[EdgePropertyType, VertexPropertyType]) GetMeta() any {
 }
 
 func serializeGraph[EdgePropertyType any, VertexPropertyType any](graph *FSGraph[EdgePropertyType, VertexPropertyType]) ([]byte, error) {
+	//data, err := msgpack.Marshal(graph)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//return data, nil
 	var buffer bytes.Buffer
 	encoder := gob.NewEncoder(&buffer)
 
